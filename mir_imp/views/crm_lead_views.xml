@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="eska_crm_lead_view_form" model="ir.ui.view">
+            <field name="name">eska.crm.lead.form</field>
+            <field name="model">crm.lead</field>
+            <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='stage_id']" position="before">
+                    <button name="notebook_on"
+                            type="object"
+                            string="Notebook ON"
+                            invisible="has_notebook == True"
+                            class="purple-button"
+                    />
+                    <button name="notebook_off"
+                            type="object"
+                            string="Notebook OFF"
+                            invisible="has_notebook == False"
+                            class="purple-button"
+                    />
+                </xpath>
+                <xpath expr="//notebook" position="before">
+                    <group>
+                        <field name="has_notebook" readonly="1" invisible="1"/>
+                        <field name="resulting_document"/>
+                        <field name="related_document"/>
+                        <field name="refers_to"/>
+                    </group>
+                </xpath>
+                <xpath expr="//notebook" position="attributes">
+                    <attribute name="invisible">has_notebook == False</attribute>
+                </xpath>
+                <xpath expr="//notebook" position="after">
+                    <div style="display: flex; align-items: center;"
+                         invisible="has_notebook == True"
+                         >
+                        <div>
+                            <field name="internal_notes_visible" widget="boolean_icon"/>
+                        </div>
+                        <div style="margin-left: 10px;">
+                            <h6>Internal Notes</h6>
+                        </div>
+                    </div>
+                    <div name="internal_notes"
+                         invisible="internal_notes_visible == False or has_notebook == True"
+                         >
+                        <hr style="border: 1px solid #ccc; margin-top: 10px; margin-bottom: 10px;"/>
+                        <field name="description" placeholder="Add a description..."
+                               options="{'collaborative': true}"/>
+                    </div>
+                    <div style="display: flex; align-items: center;"
+                         invisible="has_notebook == True"
+                         >
+                        <div>
+                            <field name="extra_information_visible" widget="boolean_icon"/>
+                        </div>
+                        <div style="margin-left: 10px;">
+                            <h6>Extra Information</h6>
+                        </div>
+                    </div>
+                    <div name="extra_information"
+                         invisible="extra_information_visible == False or has_notebook == True"
+                         >
+                        <hr style="border: 1px solid #ccc; margin-top: 10px; margin-bottom: 10px;"/>
+                        <group>
+                            <group string="Marketing">
+                                <field name="campaign_id"
+                                       options="{'create_name_field': 'title', 'always_reload': True}"/>
+                                <field name="medium_id"/>
+                                <field name="source_id"/>
+                                <field name="referred"/>
+                            </group>
+                            <group string="Tracking" name="Misc">
+                                <field name="company_id" groups="base.group_multi_company"
+                                       options="{'no_create': True}"/>
+                                <field name="team_id" options="{'no_open': True, 'no_create': True}"
+                                       context="{'kanban_view_ref' : 'sales_team.crm_team_view_kanban'}"/>
+                                <field name="day_open"/>
+                                <field name="day_close"/>
+                                <field name="type" invisible="1"/>
+                            </group>
+                        </group>
+                    </div>
+                </xpath>
+
+            </field>
+        </record>
+    </data>
+</odoo>
