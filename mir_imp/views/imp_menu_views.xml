@@ -1,0 +1,4 @@
+<odoo>
+    <menuitem id="mir_imp_main_menu" name="Odoo Imp" sequence="1"
+              web_icon="mir_imp,static/description/icon.png"/>
+</odoo>
