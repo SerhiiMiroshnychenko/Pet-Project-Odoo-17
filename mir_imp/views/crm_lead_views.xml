@@ -9,15 +9,17 @@
                 <xpath expr="//field[@name='stage_id']" position="before">
                     <button name="notebook_on"
                             type="object"
-                            string="Notebook ON"
+                            icon="fa-plus-square"
+                            string="Notebook"
                             invisible="has_notebook == True"
-                            class="purple-button"
+                            class="btn btn-outline-info"
                     />
                     <button name="notebook_off"
                             type="object"
-                            string="Notebook OFF"
+                            icon="fa-minus-square"
+                            string="Notebook"
                             invisible="has_notebook == False"
-                            class="purple-button"
+                            class="btn btn-outline-warning"
                     />
                 </xpath>
                 <xpath expr="//notebook" position="before">
