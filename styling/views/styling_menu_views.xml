@@ -1,0 +1,4 @@
+<odoo>
+    <menuitem id="styling_main_menu" name="Styling" sequence="1"
+              web_icon="styling,static/description/icon.png"/>
+</odoo>
