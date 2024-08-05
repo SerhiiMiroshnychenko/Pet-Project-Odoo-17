@@ -7,4 +7,4 @@ Contains modules:
     * mir_imp
     * my_hostel
     * styling
-
+    * public_email
