@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="mail.Chatter" t-inherit-mode="extension">
+       <xpath expr="//*[contains(@class, 'o-mail-Chatter-activity')]" position="after">
+           <t t-if="env.debug">
+                <button class="btn btn-link" t-att-class="{'my-2': !props.compactHeight }"
+                        data-hotkey="shift+i" t-on-click="showInfo">
+                    <i class="fa fa-info-circle"/>
+                </button>
+            </t>
+       </xpath>
+    </t>
+</templates>
