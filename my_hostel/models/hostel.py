@@ -20,6 +20,14 @@ class Hostel(models.Model):
     phone = fields.Char('Phone', required=True)
     mobile = fields.Char('Mobile', required=True)
     email = fields.Char('Email')
+    hostel_floors = fields.Integer(string="Total Floors")
+    image = fields.Binary('Hostel Image')
+    active = fields.Boolean("Active", default=True, help="Activate/Deactivate hostel record")
+    type = fields.Selection([("male", "Boys"), ("female", "Girls"), ("common", "Common")], "Type",
+                            help="Type of Hostel", required=True, default="common")
+    other_info = fields.Text("Other Information", help="Enter more information")
+    description = fields.Html('Description')
+    hostel_rating = fields.Float('Hostel Average Rating', digits=(14, 4))
 
     @api.depends('hostel_code')
     def _compute_display_name(self):
