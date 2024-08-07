@@ -6,8 +6,9 @@
         <field name="model">hostel.hostel</field>
         <field name="arch" type="xml">
             <tree>
-                <field name="name"/>
-                <field name="hostel_code"/>
+                <field name="display_name"/>
+                <field name="name" optional="hide"/>
+                <field name="hostel_code" optional="hide"/>
             </tree>
         </field>
     </record>
@@ -23,10 +24,10 @@
                         <h3>
                             <table>
                                 <tr>
-                                    <td style="padding-right:10px;"><field name="name" required="1" 
-                                    placeholder="Name" /></td>
-                                    <td style="padding-right:10px;"><field name="hostel_code" 
-                                    placeholder="Code" /></td>
+                                    <td style="padding-right:10px;"><field name="name" required="1"
+                                                                           placeholder="Name"/></td>
+                                    <td style="padding-right:10px;"><field name="hostel_code"
+                                                                           placeholder="Code"/></td>
                                 </tr>
                             </table>
                         </h3>
@@ -37,14 +38,30 @@
                             <div class="o_address_format">
                                 <field name="street" placeholder="Street..." class="o_address_street"/>
                                 <field name="street2" placeholder="Street 2..." class="o_address_street"/>
+                                <field name="city" placeholder="City" class="o_address_city"/>
+                                <field name="state_id" class="o_address_state" placeholder="State"
+                                       options='{"no_open": True}'/>
+                                <field name="zip" placeholder="ZIP" class="o_address_zip"/>
+                                <field name="country_id" placeholder="Country" class="o_address_country"
+                                       options='{"no_open": True, "no_create": True}'/>
                             </div>
                         </group>
+                        <group>
+                            <field name="hostel_floors"/>
+                            <field name="active"/>
+                            <field name="type"/>
+                            <field name="hostel_rating"/>
+                            <field name="other_info"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="description"/>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
-    
+
     <!-- Search View -->
     <record id="view_hostel_search_view" model="ir.ui.view">
         <field name="name">Hostel Search</field>
@@ -72,8 +89,8 @@
     <menuitem id="hostel_main_menu" name="Hostel" sequence="1"
               web_icon="my_hostel,static/description/icon.png"/>
 
-    <menuitem id="hostel_type_menu" name="Hostel" parent="hostel_main_menu" 
-        action="my_hostel.action_hostel" groups="my_hostel.group_hostel_manager"
-        sequence="1"/>
+    <menuitem id="hostel_type_menu" name="Hostel" parent="hostel_main_menu"
+              action="my_hostel.action_hostel" groups="my_hostel.group_hostel_manager"
+              sequence="1"/>
 
 </odoo>
