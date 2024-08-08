@@ -27,7 +27,10 @@ class Hostel(models.Model):
                             help="Type of Hostel", required=True, default="common")
     other_info = fields.Text("Other Information", help="Enter more information")
     description = fields.Html('Description')
-    hostel_rating = fields.Float('Hostel Average Rating', digits=(14, 4))
+    hostel_rating = fields.Float('Hostel Average Rating',
+                                 # digits=(14, 4) # Method 1: Optional precision (total, decimals),
+                                 digits='Rating Value'  # Method 2
+                                 )
 
     @api.depends('hostel_code')
     def _compute_display_name(self):
