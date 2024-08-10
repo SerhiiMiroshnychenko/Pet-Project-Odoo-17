@@ -27,6 +27,8 @@
                                 <field name="floor_no"/>
                             </group>
                             <group>
+                                <field name="student_per_room"/>
+                                <field name="availability"/>
                                 <field name="rent_amount"/>
                                 <field name="currency_id"/>
                             </group>
