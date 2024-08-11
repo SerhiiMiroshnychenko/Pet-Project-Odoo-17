@@ -7,3 +7,5 @@ access_hostel_amenities_manager_id,access.hostel.amenities.manager,my_hostel.mod
 access_hostel_amenities_user_id,access.hostel.amenities.user,my_hostel.model_hostel_amenities,my_hostel.group_hostel_user,1,0,0,0
 access_hostel_student_manager_id,access.hostel.student.manager,my_hostel.model_hostel_student,my_hostel.group_hostel_manager,1,1,1,1
 access_hostel_student_user_id,access.hostel.student.user,my_hostel.model_hostel_student,my_hostel.group_hostel_user,1,0,0,0
+access_hostel_category_manager_id,access.hostel.category.manager,my_hostel.model_hostel_category,my_hostel.group_hostel_manager,1,1,1,1
+access_hostel_category_user_id,access.hostel.category.user,my_hostel.model_hostel_category,my_hostel.group_hostel_user,1,0,0,0
