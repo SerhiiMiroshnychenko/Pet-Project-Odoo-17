@@ -9,3 +9,4 @@ access_hostel_student_manager_id,access.hostel.student.manager,my_hostel.model_h
 access_hostel_student_user_id,access.hostel.student.user,my_hostel.model_hostel_student,my_hostel.group_hostel_user,1,0,0,0
 access_hostel_category_manager_id,access.hostel.category.manager,my_hostel.model_hostel_category,my_hostel.group_hostel_manager,1,1,1,1
 access_hostel_category_user_id,access.hostel.category.user,my_hostel.model_hostel_category,my_hostel.group_hostel_user,1,0,0,0
+my_hostel.access_hostel_cabin,access_hostel_cabin,my_hostel.model_hostel_cabin,base.group_user,1,1,1,1
