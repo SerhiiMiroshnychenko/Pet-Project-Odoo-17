@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+
+        <record id="view_hostel_student_form_inherit" model="ir.ui.view">
+            <field name="name">hostel.student.form.inherit</field>
+            <field name="model">hostel.student</field>
+            <field name="inherit_id" ref="my_hostel.view_hostel_student_form"/>
+            <field name="priority" eval="99"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='room_id']" position="after">
+                    <field name="cabin_id"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_hostel_cabin_tree" model="ir.ui.view">
+            <field name="name">hostel.cabin.tree</field>
+            <field name="model">hostel.cabin</field>
+            <field name="arch" type="xml">
+                <tree string="Cabin">
+                    <field name="name" string="Cabin name"/>
+                    <field name="room_no" string="Cabin No."/>
+                    <field name="floor_no"/>
+                    <field name="active"/>
+                </tree>
+            </field>
+        </record>
+
+        <record id="view_hostel_cabin_form" model="ir.ui.view">
+            <field name="name">hostel.cabin.form</field>
+            <field name="model">hostel.cabin</field>
+            <field name="arch" type="xml">
+                <form string="Cabin">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name" string="Cabin name"/>
+                                <field name="room_no" string="Cabin No."/>
+                                <field name="hostel_id" required="1"/>
+                                <field name="floor_no"/>
+                            </group>
+                            <group>
+                                <field name="student_per_room" string="Student per Cabin"/>
+                                <field name="availability"/>
+                                <field name="rent_amount"/>
+                                <field name="currency_id"/>
+                                <div class="o_row">
+                                    <button name="do_archive"
+                                            type="object"
+                                            class="btn btn-secondary border"
+                                            string="Active"/>
+                                    <field name="active" readonly="1"/>
+                                </div>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page name="room_studnets" string="Studnets">
+                                <field name="student_ids"/>
+                            </page>
+                            <page name="hostel_amenities" string="Cabin Amenities">
+                                <group>
+                                    <field name="hostel_amenities_ids" widget="many2many_tags"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="action_hostel_cabin">
+            <field name="name">Cabin</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">hostel.cabin</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[]</field>
+            <field name="context">{}</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">
+                    Create Cabin.
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="hostel_cabin_menu" name="Hostel Cabin" parent="my_hostel.hostel_main_menu"
+                  action="my_hostel.action_hostel_cabin"
+                  sequence="2"/>
+
+    </data>
+</odoo>
