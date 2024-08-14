@@ -2,8 +2,18 @@ from odoo import fields, models, api, _
 from odoo.exceptions import ValidationError
 
 
+class BaseArchive(models.AbstractModel):
+    _name = 'base.archive'
+    active = fields.Boolean(default=True)
+
+    def do_archive(self):
+        for record in self:
+            record.active = not record.active
+
+
 class HostelRoom(models.Model):
     _name = "hostel.room"
+    # _inherit = ['base.archive']
     _description = "Hostel Room Information"
     _rec_name = "room_no"
 
