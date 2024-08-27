@@ -79,7 +79,7 @@
             </field>
         </record>
 
-        <menuitem id="hostel_main_menu" name="Hostel" sequence="1"/>
+        <menuitem id="hostel_main_menu" web_icon="my_hostel,static/description/icon.png" name="Hostel" sequence="1"/>
 
         <menuitem id="hostel_type_menu" name="Hostel" parent="hostel_main_menu"
                   action="my_hostel.action_hostel" groups="my_hostel.group_hostel_manager"
