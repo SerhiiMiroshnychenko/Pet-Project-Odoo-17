@@ -1,0 +1,95 @@
+<odoo>
+    <data>
+        <!--Tree view-->
+        <record id="view_game_tree" model="ir.ui.view">
+            <field name="name">strategic.game.tree</field>
+            <field name="model">strategic.game</field>
+            <field name="arch" type="xml">
+                <tree string="Game">
+                    <field name="name"/>
+                    <field name="day"/>
+                </tree>
+            </field>
+        </record>
+
+        <!--Form view-->
+        <record id="view_game_form" model="ir.ui.view">
+            <field name="name">strategic.game.form</field>
+            <field name="model">strategic.game</field>
+            <field name="arch" type="xml">
+                <form string="Game">
+                    <header>
+                        <button name="start_game"
+                                type="object"
+                                string="Start"
+                                icon="fa-play"
+                                class="btn btn-outline-success"
+                                invisible="day > 0"
+                        />
+                    </header>
+                    <sheet>
+                        <div class="oe_button_box" name="button_box" invisible="day == 0">
+                            <button name="new_day" type="object"
+                                    class="oe_stat_button" icon="fa-clock-o">
+                                <div class="o_field_widget o_stat_info">
+                                    <span class="o_stat_value">
+                                        <field name="day"/>
+                                    </span>
+                                    <span class="o_stat_text">
+                                        Day
+                                    </span>
+                                </div>
+                            </button>
+                        </div>
+                        <div class="oe_title">
+                            <h3>
+                                <table>
+                                    <tr>
+                                        <td style="padding-right:10px;">
+                                            <field name="name" placeholder="Name"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </h3>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="player_country" invisible="player_country != False"/>
+                            </group>
+                            <group>
+                            </group>
+                        </group>
+
+                    </sheet>
+                    <sheet groups="base.group_no_one">
+                        <group>
+                            <field name="day"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="action_game">
+            <field name="name">Game</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">strategic.game</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create Your Game!
+                </p>
+                <p>
+                    Immerse yourself in the world of strategic thinking and win over your enemies.
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="game_main_menu" web_icon="strategame,static/description/icon.png" name="Strategic Game"
+                  sequence="1"/>
+
+        <menuitem id="game_menu" name="Game" parent="game_main_menu"
+                  action="strategame.action_game" sequence="1"/>
+
+    </data>
+</odoo>
