@@ -1,0 +1,63 @@
+<odoo>
+    <data>
+       <!--Tree view-->
+        <record id="view_homeland_tree" model="ir.ui.view">
+            <field name="name">home.land.tree</field>
+            <field name="model">home.land</field>
+            <field name="arch" type="xml">
+                <tree string="HomeLand">
+                    <field name="name"/>
+                    <field name="gold"/>
+                </tree>
+            </field>
+        </record>
+
+       <!--Form view-->
+        <record id="view_homeland_form" model="ir.ui.view">
+            <field name="name">home.land.form</field>
+            <field name="model">home.land</field>
+            <field name="arch" type="xml">
+                <form string="HomeLand">
+                    <header>
+                    </header>
+                    <sheet>
+                        <div class="oe_title">
+                            <h3>
+                                <table>
+                                    <tr>
+                                        <td style="padding-right:10px;">
+                                            <field name="name" placeholder="Name"/>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </h3>
+                        </div>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="gold" widget="monetary"/>
+                        </group>
+
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record model="ir.actions.act_window" id="action_homeland">
+            <field name="name">homelan</field>
+            <field name="type">ir.actions.act_window</field>
+            <field name="res_model">home.land</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create Your Homeland!
+                </p>
+                <p>
+                    Create your Homeland and lead It to world domination.
+                </p>
+            </field>
+        </record>
+
+        <menuitem id="homeland_menu" name="Countries" parent="game_main_menu"
+                  action="strategame.action_homeland" sequence="1"/>
+    </data>
+</odoo>
