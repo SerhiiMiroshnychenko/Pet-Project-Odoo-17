@@ -35,6 +35,7 @@
                         <group>
                             <field name="currency_id" invisible="1"/>
                             <field name="gold" widget="monetary"/>
+                            <field name="game_id" widget="many2one"/>
                         </group>
 
                     </sheet>
