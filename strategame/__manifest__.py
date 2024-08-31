@@ -28,7 +28,7 @@ Strategic Game in Odoo
     "assets": {
         "web.assets_frontend": [],
         "web.assets_backend": [
-            '/mir_imp/static/src/css/*.css',
+            '/strategame/static/src/css/*.css',
         ],
     },
     "external_dependencies": {},
