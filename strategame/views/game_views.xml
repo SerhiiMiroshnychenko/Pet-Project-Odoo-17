@@ -42,29 +42,54 @@
                             </button>
                         </div>
                         <div class="oe_title">
-                            <h3>
-                                <table>
-                                    <tr>
-                                        <td style="padding-right:10px;">
-                                            <field name="name" placeholder="Name"/>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </h3>
+                            <h4 class="text-muted">
+                                <field name="name" placeholder="Name" invisible="name != False"/>
+                                <field name="name" invisible="name == False" readonly="True"/>
+                            </h4>
                         </div>
+                        <field name="has_homeland" invisible="True"/>
                         <group>
-                            <group>
-                                <field name="player_country" invisible="player_country != False"/>
-                            </group>
-                            <group>
-                            </group>
+                            <field name="player_country_id" invisible="has_homeland == True"/>
                         </group>
+                        <field name="player_country_ids"
+                               mode="kanban" invisible="has_homeland == False">
+                            <kanban create="False">
+                                <field name="name"/>
+                                <field name="gold"/>
+                                <field name="currency_id"/>
+                                <t t-name="kanban-box">
+                                    <div class="homeland-card">
+                                        <h2 class="text-center">
+                                            <field name="name"/>
+                                        </h2>
+                                        <hr/>
+                                        <div>
+                                            <span class="text-muted">Gold: </span>
+                                            <field name="gold" widget="monetary"/>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted">Farms: </span>
+                                            <field name="farms"/>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted">Army: </span>
+                                            <field name="army"/><a class="text-muted"> warriors</a>
+                                        </div>
+                                    </div>
+                                </t>
+                            </kanban>
+                        </field>
+
+                        <span class="text-muted">Click to buy:</span>
+                        <button class="btn btn-outline-success m-1" name="buy_farm" type="object" string="FARM"/>
+                        <button  class="btn btn-outline-danger m-1" name="buy_army" type="object" string="ARMY"/>
 
                     </sheet>
                     <sheet groups="base.group_no_one">
                         <group>
                             <field name="day"/>
                         </group>
+                        <button name="set_to_start" type="object" string="SET to START"/>
                     </sheet>
                 </form>
             </field>
