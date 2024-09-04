@@ -33,58 +33,145 @@
                                     class="oe_stat_button" icon="fa-clock-o">
                                 <div class="o_field_widget o_stat_info">
                                     <span class="o_stat_value">
-                                        <field name="day"/>
+                                        <field name="day" readonly="1"/>
                                     </span>
                                     <span class="o_stat_text">
                                         Day
                                     </span>
                                 </div>
                             </button>
+                            <button name="show_age" type="object"
+                                    class="oe_stat_button" icon="fa-clock-o">
+                                <div class="o_field_widget o_stat_info">
+                                    <span class="o_stat_value">
+                                        <field name="age"/>
+                                    </span>
+                                    <span class="o_stat_text">
+                                        Age
+                                    </span>
+                                </div>
+                            </button>
                         </div>
                         <div class="oe_title">
                             <h4 class="text-muted">
-                                <field name="name" placeholder="Name" invisible="name != False"/>
-                                <field name="name" invisible="name == False" readonly="True"/>
+                                <table>
+                                    <tr>
+                                        <td style="padding-right:10px;">
+                                            <field name="name" placeholder="Name" invisible="name != False"/>
+                                            <field name="name" invisible="name == False" readonly="True"/>
+                                        </td>
+                                        <td style="padding-right:10px;">
+                                            <field name="day" readonly="1" widget="progressbar"/> of Age
+                                        </td>
+                                    </tr>
+                                </table>
                             </h4>
                         </div>
                         <field name="has_homeland" invisible="True"/>
-                        <group>
-                            <field name="player_country_id" invisible="has_homeland == True"/>
-                        </group>
-                        <field name="player_country_ids"
-                               mode="kanban" invisible="has_homeland == False">
-                            <kanban create="False">
-                                <field name="name"/>
-                                <field name="gold"/>
-                                <field name="currency_id"/>
-                                <t t-name="kanban-box">
-                                    <div class="homeland-card">
-                                        <h2 class="text-center">
+                        <table class="text-center">
+                            <tr>
+                                <td style="padding-right:10px;">
+                                    <h2 class="side-header-home">Home Land</h2>
+                                    <group>
+                                        <field name="player_country_id" invisible="has_homeland == True"/>
+                                    </group>
+                                    <field name="player_country_ids"
+                                           mode="kanban" invisible="has_homeland == False">
+                                        <kanban create="False">
                                             <field name="name"/>
-                                        </h2>
-                                        <hr/>
-                                        <div>
-                                            <span class="text-muted">Gold: </span>
-                                            <field name="gold" widget="monetary"/>
-                                        </div>
-                                        <div>
-                                            <span class="text-muted">Farms: </span>
-                                            <field name="farms"/>
-                                        </div>
-                                        <div>
-                                            <span class="text-muted">Army: </span>
-                                            <field name="army"/><a class="text-muted"> warriors</a>
-                                        </div>
-                                    </div>
-                                </t>
-                            </kanban>
-                        </field>
+                                            <field name="currency_id"/>
+                                            <t t-name="kanban-box">
+                                                <div class="homeland-card">
+                                                    <table class="text-center">
+                                                        <tr>
+                                                            <td style="padding-right:10px;"><a type="object"
+                                                                                               name="action_open_homeland"
+                                                                                               class="btn btn-link homeland-card "
+                                                                                               t-attf-title="{{ record.name.raw_value }}">
+                                                                <t t-esc="record.name.raw_value"/>
+                                                            </a></td>
+                                                            <td style="padding-right:10px;"><field name="badge"
+                                                                                                   widget="image"
+                                                                                                   class="badge-image"/></td>
+                                                        </tr>
+                                                    </table>
+                                                    <hr/>
+                                                    <table>
+                                                        <tr>
+                                                            <td><span class="text-muted">Gold:</span></td>
+                                                            <td><field name="gold" widget="monetary"/></td>
+                                                            <td></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><span class="text-muted">Farms:</span></td>
+                                                            <td><field name="farms"/></td>
+                                                            <td></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><span class="text-muted">Army:</span></td>
+                                                            <td><field name="army"/></td>
+                                                            <td><a class="text-muted"> warriors</a></td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </t>
+                                        </kanban>
+                                    </field>
 
-                        <span class="text-muted">Click to buy:</span>
-                        <button class="btn btn-outline-success m-1" name="buy_farm" type="object" string="FARM"/>
-                        <button  class="btn btn-outline-danger m-1" name="buy_army" type="object" string="ARMY"/>
+                                    <span class="text-muted">Click to buy:</span>
+                                    <button class="btn btn-outline-success m-1" name="buy_farm" type="object"
+                                            string="FARM"/>
+                                    <button class="btn btn-outline-danger m-1" name="buy_army" type="object"
+                                            string="ARMY"/>
+
+                                </td>
+                                <td style="padding-right:10px;">
+                                    <h2 class="side-header-enemy">Enemies</h2>
+                                    <field name="enemy_ids" mode="kanban">
+                                        <kanban>
+                                            <field name="name"/>
+                                            <t t-name="kanban-box">
+                                                <div class="homeland-card">
+                                                    <table class="text-center">
+                                                        <tr>
+                                                            <td style="padding-right:10px;"><a type="object"
+                                                                                               name="action_open_enemy"
+                                                                                               class="btn btn-link homeland-card "
+                                                                                               t-attf-title="{{ record.name.raw_value }}">
+                                                                <t t-esc="record.name.raw_value"/>
+                                                            </a></td>
+                                                            <td style="padding-right:10px;"><field name="badge"
+                                                                                                   widget="image"
+                                                                                                   class="badge-image"/></td>
+                                                        </tr>
+                                                    </table>
+                                                    <hr/>
+                                                    <table>
+                                                        <tr>
+                                                            <td><span class="text-muted">Army:</span></td>
+                                                            <td><field name="army"/></td>
+                                                            <td><a class="text-muted"> enemies</a></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><span class="text-muted">Agression:</span></td>
+                                                            <td><field name="aggression" widget="percentpie"/></td>
+                                                            <td></td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            </t>
+                                        </kanban>
+                                    </field>
+
+                                </td>
+                            </tr>
+                        </table>
+
 
                     </sheet>
+                    <header class="m-2 ps-5" invisible="day == 0">
+                        <button name="new_day" type="object" string="NEXT DAY"/>
+                    </header>
                     <sheet groups="base.group_no_one">
                         <group>
                             <field name="day"/>
