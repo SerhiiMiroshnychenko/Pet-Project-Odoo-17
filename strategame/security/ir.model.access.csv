@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 strategame.access_strategic_game,access_strategic_game,strategame.model_strategic_game,base.group_user,1,1,1,1
 strategame.access_home_land,access_home_land,strategame.model_home_land,base.group_user,1,1,1,1
+strategame.access_enemy,access_enemy,strategame.model_enemy,base.group_user,1,1,1,1
