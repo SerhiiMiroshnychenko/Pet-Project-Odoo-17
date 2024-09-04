@@ -23,6 +23,7 @@ Strategic Game in Odoo
         "security/ir.model.access.csv",
 
         "views/homeland_views.xml",
+        "views/enemy_views.xml",
         "views/game_views.xml",
     ],
     "assets": {
