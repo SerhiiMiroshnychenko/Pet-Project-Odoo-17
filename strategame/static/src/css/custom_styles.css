@@ -2,3 +2,25 @@
     font-size: 1.2rem;
     font-family: monospace;
 }
+
+.homeland-card table {
+    width: 100%;
+    border-collapse: collapse; /* Забирає відступи між клітинками */
+}
+
+.homeland-card td {
+    width: 33.33%;
+}
+
+.badge-image img {
+    height: 100px; /* Задайте бажану висоту */
+}
+
+.side-header-home {
+    color: #483D8B;
+}
+
+
+.side-header-enemy {
+    color: #8B0000;
+}
