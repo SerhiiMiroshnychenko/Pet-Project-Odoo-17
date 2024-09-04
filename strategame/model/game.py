@@ -8,6 +8,7 @@ class Game(models.Model):
 
     name = fields.Char(required=True)
     day = fields.Integer()
+    age = fields.Integer(compute='_compute_age', store=True, default=1)
 
     player_country_id = fields.Many2one('home.land', string='Homeland', help='Choose your Country')
     player_country_ids = fields.One2many(
@@ -18,15 +19,34 @@ class Game(models.Model):
 
     has_homeland = fields.Boolean(compute='_compute_has_homeland', store=True)
 
+    enemy_ids = fields.One2many('enemy', inverse_name='game_id')
+
     def start_game(self):
         for game in self:
             game.day += 1
+            game.age = 1
 
     def new_day(self):
         for game in self:
             game.day += 1
             for land in game.player_country_ids:
                 land.gold += land.farms * 10
+            for enemy in game.enemy_ids:
+                enemy.new_day()
+
+    def show_age(self):
+        for game in self:
+            title = _(f"Current Age:")
+            message = game.age
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': title,
+                    'message': message,
+                    'sticky': False,
+                }
+            }
 
     @api.depends('player_country_id')
     def _compute_player_country_ids(self):
@@ -46,6 +66,13 @@ class Game(models.Model):
             game.update({
                 'has_homeland': all([game.player_country_id, game.player_country_ids])
             })
+
+    @api.depends('day')
+    def _compute_age(self):
+        for game in self:
+            if game.day == 100:
+                game.age += 1
+                game.day = 1
 
     def buy_farm(self):
         for game in self:
@@ -76,3 +103,10 @@ class Game(models.Model):
                     'farms': 1,
                     'army': 50
                 })
+            for enemy in game.enemy_ids:
+                enemy.update({
+                    'army': 0,
+                    'aggression': 0
+                })
+
+    # def add_enemy(self):
