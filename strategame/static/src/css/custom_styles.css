@@ -24,3 +24,11 @@
 .side-header-enemy {
     color: #8B0000;
 }
+
+.land_html_card {
+    font-family: monospace;
+}
+
+.land_html_card h2 {
+    color: #d4af37;
+}

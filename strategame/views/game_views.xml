@@ -178,6 +178,9 @@
                         </group>
                         <button name="set_to_start" type="object" string="SET to START"/>
                     </sheet>
+                    <sheet groups="base.group_no_one">
+                        <field name="game_html" widget="html"/>
+                    </sheet>
                 </form>
             </field>
         </record>

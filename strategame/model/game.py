@@ -18,6 +18,7 @@ class Game(models.Model):
         store=True)
 
     has_homeland = fields.Boolean(compute='_compute_has_homeland', store=True)
+    game_html = fields.Html(compute='_compute_game_html')
 
     enemy_ids = fields.One2many('enemy', inverse_name='game_id')
 
@@ -108,5 +109,29 @@ class Game(models.Model):
                     'army': 0,
                     'aggression': 0
                 })
+
+    def _compute_game_html(self):
+        for game in self:
+            enemy_html = ''
+            for enemy in game.enemy_ids:
+                enemy_html += f'''
+{enemy.enemy_html}
+
+'''
+
+            game_html = f'''
+            <div class="container text-center">
+              <div class="row align-items-start">
+                <div class="col land_html_card">
+                  {game.player_country_id.homeland_html}
+                </div>
+                <div class="col">
+                  {enemy_html}
+                </div>
+              </div>
+            </div>
+'''
+            # homeland_html = f'<b>{game.player_country_id.name}</b></br>'
+            game.update({'game_html': game_html})
 
     # def add_enemy(self):

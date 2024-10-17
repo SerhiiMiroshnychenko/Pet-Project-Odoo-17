@@ -12,6 +12,8 @@ class Enemy(models.Model):
     aggression = fields.Integer(string=' ', default=0)
     game_id = fields.Many2one('strategic.game')
 
+    enemy_html = fields.Html(compute='_compute_enemy_html')
+
     def new_day(self):
         for enemy in self:
             enemy.army += randint(0, 10)
@@ -28,6 +30,13 @@ class Enemy(models.Model):
             'res_id': self.id,  # Додано ID запису
             'target': 'new'
         }
+
+    def _compute_enemy_html(self):
+        for enemy in self:
+            enemy_html = f'''
+        <h2>{enemy.name}</h2>
+        '''
+            enemy.update({'enemy_html': enemy_html})
 
     # def write(self, vals):
     #     result = super().write(vals)

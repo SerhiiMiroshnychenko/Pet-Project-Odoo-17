@@ -1,3 +1,5 @@
+import base64
+
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
@@ -14,6 +16,8 @@ class HomeLand(models.Model):
     farms = fields.Integer(string='Farms', default=1)
     army = fields.Integer(string='Army', default=50)
 
+    homeland_html = fields.Html(compute='_compute_homeland_html')
+
     def action_open_homeland(self):
         self.ensure_one()
         return {
@@ -24,6 +28,23 @@ class HomeLand(models.Model):
             'res_id': self.id,  # Додано ID запису
             'target': 'new'
         }
+
+    def _compute_homeland_html(self):
+        for land in self:
+            print(f"{land.badge = }")
+            image_html = ''
+            if land.badge:
+                # Якщо badge містить бінарні дані, перетворимо їх на base64
+                badge_base64 = base64.b64encode(land.badge).decode('utf-8')
+                print(f"{badge_base64 = }")
+                image_html = f'<img src="data:image/png;base64, {badge_base64}" alt="My Image">'
+                print(f"{image_html = }")
+
+            land_html = f'''
+<h2>{land.name}</h2>
+{image_html}
+'''
+            land.update({'homeland_html': land_html})
 
     # def write(self, vals):
     #     result = super().write(vals)
