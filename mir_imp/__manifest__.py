@@ -30,6 +30,7 @@ A module to enhance Odoo functionality
         "web.assets_frontend": [],
         "web.assets_backend": [
             '/mir_imp/static/src/css/*.css',
+            '/mir_imp/static/src/js/custom_click.js',
         ],
     },
     "external_dependencies": {},

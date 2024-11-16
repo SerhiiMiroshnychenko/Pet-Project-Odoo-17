@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <record id="action_custom_button" model="ir.actions.client">
+            <field name="name">Custom Button Action</field>
+            <field name="tag">custom_button_action</field>
+        </record>
+
         <record id="eska_crm_lead_view_form" model="ir.ui.view">
             <field name="name">eska.crm.lead.form</field>
             <field name="model">crm.lead</field>
@@ -21,6 +26,11 @@
                             invisible="has_notebook == False"
                             class="btn btn-outline-warning"
                     />
+                    <button name="%(action_custom_button)d"
+                            type="action"
+                            string="Кнопка"
+                            class="btn-primary"
+                    />
                 </xpath>
                 <xpath expr="//notebook" position="before">
                     <group>
@@ -36,7 +46,7 @@
                 <xpath expr="//notebook" position="after">
                     <div style="display: flex; align-items: center;"
                          invisible="has_notebook == True"
-                         >
+                    >
                         <div>
                             <field name="internal_notes_visible" widget="boolean_icon"/>
                         </div>
@@ -46,14 +56,14 @@
                     </div>
                     <div name="internal_notes"
                          invisible="internal_notes_visible == False or has_notebook == True"
-                         >
+                    >
                         <hr style="border: 1px solid #ccc; margin-top: 10px; margin-bottom: 10px;"/>
                         <field name="description" placeholder="Add a description..."
                                options="{'collaborative': true}"/>
                     </div>
                     <div style="display: flex; align-items: center;"
                          invisible="has_notebook == True"
-                         >
+                    >
                         <div>
                             <field name="extra_information_visible" widget="boolean_icon"/>
                         </div>
@@ -63,7 +73,7 @@
                     </div>
                     <div name="extra_information"
                          invisible="extra_information_visible == False or has_notebook == True"
-                         >
+                    >
                         <hr style="border: 1px solid #ccc; margin-top: 10px; margin-bottom: 10px;"/>
                         <group>
                             <group string="Marketing">
