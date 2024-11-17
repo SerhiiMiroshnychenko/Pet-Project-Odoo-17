@@ -28,8 +28,8 @@
                     />
                     <button name="%(action_custom_button)d"
                             type="action"
-                            string="Кнопка"
-                            class="btn-primary"
+                            string="Click Me"
+                            class="btn btn-primary custom-color-button"
                     />
                 </xpath>
                 <xpath expr="//notebook" position="before">
