@@ -9,7 +9,7 @@
                     <field name="product_id" invisible="1"/>
                     <div style="text-align: center;">
                         <field name="plot_image" widget="image" 
-                               options="{'size': [900, 600]}" 
+                               options="{'size': [900, 800]}" 
                                class="oe_inline"
                                nolabel="1"/>
                     </div>

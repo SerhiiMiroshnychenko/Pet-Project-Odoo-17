@@ -20,17 +20,21 @@ class ProductProduct(models.Model):
 
     stock_history_data = fields.Text(
         string='Stock History Data',
-        compute='_compute_stock_history_data',
-        store=True,
+        readonly=True
     )
     stock_history_plot = fields.Binary(
-        string='Stock History Plot',
-        attachment=False,  # Changed to False to avoid image processing
-        help='Stock quantity history visualization'
+        string='Stock Level History Plot',
+        compute='_compute_stock_level_plot',
+        # store=True
+    )
+    stock_changes_plot = fields.Binary(
+        string='Stock Changes Plot',
+        compute='_compute_stock_changes_plot',
+        # store=True
     )
     last_stock_update = fields.Datetime(
         string='Last Stock Update',
-        help='Technical field to track stock updates'
+        readonly=True
     )
 
     def _serialize_datetime(self, dt):
@@ -54,14 +58,12 @@ class ProductProduct(models.Model):
                         'quantity': record['quantity']
                     })
                 product.stock_history_data = json.dumps(serializable_history)
-                product._generate_stock_history_plot()
             except Exception as e:
                 _logger.error(f"Error computing stock history data: {str(e)}")
                 product.stock_history_data = "[]"
-                product.stock_history_plot = False
 
     def _generate_stock_history_plot(self):
-        """Generate and save stock history plot"""
+        """Generate combined plot for wizard view"""
         self.ensure_one()
         
         try:
@@ -76,7 +78,7 @@ class ProductProduct(models.Model):
                 history = self.get_stock_history()
             
             if not history:
-                return
+                return False
 
             # Prepare data for plotting
             dates = [record['date'] for record in history]
@@ -86,15 +88,12 @@ class ProductProduct(models.Model):
             qty_changes = []
             for i in range(1, len(quantities)):
                 qty_changes.append(quantities[i] - quantities[i-1])
+
+            # Create figure with two subplots
+            fig = plt.figure(figsize=(12, 8))
             
-            # Create figure with two subplots sharing x-axis
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
-            
-            # Add title
-            fig.suptitle(f'Stock History for {self.name}\n({self.default_code or "No Reference"})', 
-                        fontsize=14, y=1.0)
-            
-            # Plot step chart on the first subplot
+            # Stock Level Plot (top)
+            ax1 = plt.subplot(2, 1, 1)
             ax1.step(dates, quantities, where='post', color='blue', linewidth=2, 
                     label='Stock Level')
             ax1.scatter(dates, quantities, color='blue', s=50, zorder=5)
@@ -103,19 +102,24 @@ class ProductProduct(models.Model):
             ax1.legend()
             
             # Format dates on x-axis
-            for ax in [ax1, ax2]:
-                ax.tick_params(axis='x', rotation=45)
-                # Встановлюємо фіксовані позиції для міток
-                ax.set_xticks(dates)
-                # Форматуємо дати для міток
-                date_labels = [d.strftime('%Y-%m-%d') for d in dates]
-                ax.set_xticklabels(date_labels, ha='right')
+            ax1.tick_params(axis='x', rotation=45)
+            ax1.set_xticks(dates)
+            date_labels = [d.strftime('%Y-%m-%d') for d in dates]
+            ax1.set_xticklabels(date_labels, ha='right')
             
-            # Plot bar chart on the second subplot
-            bars = ax2.bar(dates[1:], qty_changes, color=['g' if x >= 0 else 'r' for x in qty_changes],
-                          alpha=0.6)
+            # Stock Changes Plot (bottom)
+            ax2 = plt.subplot(2, 1, 2)
+            bars = ax2.bar(dates[1:], qty_changes, 
+                         color=['g' if x >= 0 else 'r' for x in qty_changes],
+                         alpha=0.6)
             ax2.set_ylabel('Stock Changes', fontsize=12)
             ax2.grid(True, linestyle='--', alpha=0.7)
+            
+            # Format dates on x-axis
+            ax2.tick_params(axis='x', rotation=45)
+            ax2.set_xticks(dates[1:])
+            date_labels = [d.strftime('%Y-%m-%d') for d in dates[1:]]
+            ax2.set_xticklabels(date_labels, ha='right')
             
             # Add value labels on bars
             for bar in bars:
@@ -127,23 +131,160 @@ class ProductProduct(models.Model):
                         ha='center', va='bottom' if height >= 0 else 'top',
                         fontsize=10)
             
-            # Adjust layout
-            plt.subplots_adjust(top=0.9, bottom=0.15, hspace=0.4)
+            # Add title for the entire figure
+            fig.suptitle(f'Stock History Analysis\n{self.name} ({self.default_code or "No Reference"})', 
+                        fontsize=14, y=0.95)
             
-            # Save plot to memory
+            # Adjust layout
+            plt.tight_layout()
+            
+            # Save plot
             buf = io.BytesIO()
-            plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
+            fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
                        facecolor='white', edgecolor='none', pad_inches=0.2)
             plt.close(fig)
             
             # Convert to base64
             buf.seek(0)
-            self.stock_history_plot = base64.b64encode(buf.getvalue())
-            self.last_stock_update = fields.Datetime.now()
+            return base64.b64encode(buf.getvalue())
             
         except Exception as e:
             _logger.error(f"Error generating stock history plot: {str(e)}")
-            self.stock_history_plot = False
+            return False
+
+    def _compute_stock_level_plot(self):
+        """Compute stock level history plot for form view"""
+        for record in self:
+            try:
+                if record.stock_history_data:
+                    # Parse JSON and convert dates back to datetime objects
+                    history_data = json.loads(record.stock_history_data)
+                    history = [{
+                        'date': record._deserialize_datetime(item['date']),
+                        'quantity': item['quantity']
+                    } for item in history_data]
+                else:
+                    history = record.get_stock_history()
+                
+                if not history:
+                    record.stock_history_plot = False
+                    return
+
+                # Prepare data for plotting
+                dates = [item['date'] for item in history]
+                quantities = [item['quantity'] for item in history]
+                
+                # Generate Stock Level Plot
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Plot step chart
+                ax.step(dates, quantities, where='post', color='blue', linewidth=2, 
+                        label='Stock Level')
+                ax.scatter(dates, quantities, color='blue', s=50, zorder=5)
+                ax.set_ylabel(f'Stock Level ({record.uom_id.name})', fontsize=12)
+                ax.grid(True, linestyle='--', alpha=0.7)
+                ax.legend()
+                
+                # Format dates on x-axis
+                ax.tick_params(axis='x', rotation=45)
+                ax.set_xticks(dates)
+                date_labels = [d.strftime('%Y-%m-%d') for d in dates]
+                ax.set_xticklabels(date_labels, ha='right')
+                
+                # Add title
+                ax.set_title(f'Stock Level History\n{record.name} ({record.default_code or "No Reference"})', 
+                           fontsize=12, pad=20)
+                
+                # Adjust layout and save plot
+                plt.tight_layout()
+                buf = io.BytesIO()
+                fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
+                           facecolor='white', edgecolor='none', pad_inches=0.2)
+                plt.close(fig)
+                
+                # Convert to base64
+                buf.seek(0)
+                record.stock_history_plot = base64.b64encode(buf.getvalue())
+                
+            except Exception as e:
+                _logger.error(f"Error generating stock level plot: {str(e)}")
+                record.stock_history_plot = False
+
+    def _compute_stock_changes_plot(self):
+        """Compute stock changes plot for form view"""
+        for record in self:
+            try:
+                if record.stock_history_data:
+                    # Parse JSON and convert dates back to datetime objects
+                    history_data = json.loads(record.stock_history_data)
+                    history = [{
+                        'date': record._deserialize_datetime(item['date']),
+                        'quantity': item['quantity']
+                    } for item in history_data]
+                else:
+                    history = record.get_stock_history()
+                
+                if not history:
+                    record.stock_changes_plot = False
+                    return
+
+                # Prepare data for plotting
+                dates = [item['date'] for item in history]
+                quantities = [item['quantity'] for item in history]
+                
+                # Calculate quantity changes for bar chart
+                qty_changes = []
+                for i in range(1, len(quantities)):
+                    qty_changes.append(quantities[i] - quantities[i-1])
+
+                if not qty_changes:  # If we don't have enough data points
+                    record.stock_changes_plot = False
+                    return
+
+                # Generate Stock Changes Plot
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Plot bar chart
+                bars = ax.bar(dates[1:], qty_changes, 
+                             color=['g' if x >= 0 else 'r' for x in qty_changes],
+                             alpha=0.6)
+                ax.set_ylabel('Stock Changes', fontsize=12)
+                ax.grid(True, linestyle='--', alpha=0.7)
+                
+                # Format dates on x-axis
+                ax.tick_params(axis='x', rotation=45)
+                ax.set_xticks(dates[1:])
+                date_labels = [d.strftime('%Y-%m-%d') for d in dates[1:]]
+                ax.set_xticklabels(date_labels, ha='right')
+                
+                # Add title
+                ax.set_title(f'Stock Changes\n{record.name} ({record.default_code or "No Reference"})', 
+                           fontsize=12, pad=20)
+                
+                # Add value labels on bars
+                for bar in bars:
+                    height = bar.get_height()
+                    value = height if height >= 0 else -height
+                    y_pos = height + 0.5 if height >= 0 else height - 0.5
+                    ax.text(bar.get_x() + bar.get_width()/2., y_pos,
+                            f'{value:+.1f}',
+                            ha='center', va='bottom' if height >= 0 else 'top',
+                            fontsize=10)
+                
+                # Adjust layout and save plot
+                plt.tight_layout()
+                buf = io.BytesIO()
+                fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
+                           facecolor='white', edgecolor='none', pad_inches=0.2)
+                plt.close(fig)
+                
+                # Convert to base64
+                buf.seek(0)
+                record.stock_changes_plot = base64.b64encode(buf.getvalue())
+                
+            except Exception as e:
+                _logger.error(f"Error generating stock changes plot: {str(e)}")
+                record.stock_changes_plot = False
 
     def get_stock_history(self):
         """

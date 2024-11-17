@@ -5,7 +5,7 @@
         <field name="model">product.product</field>
         <field name="inherit_id" ref="product.product_normal_form_view"/>
         <field name="arch" type="xml">
-            <xpath expr="//header" position="inside">
+            <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="show_stock_history"
                         type="object"
                         string="Stock History"
@@ -18,10 +18,17 @@
                             <field name="last_stock_update" readonly="1"/>
                         </group>
                     </group>
-                    <group>
+                    <group string="Stock Level History">
                         <field name="stock_history_plot" 
                                widget="image" 
-                               options="{'size': [900, 600]}" 
+                               options="{'size': [900, 400]}" 
+                               readonly="1"
+                               nolabel="1"/>
+                    </group>
+                    <group string="Stock Changes">
+                        <field name="stock_changes_plot" 
+                               widget="image" 
+                               options="{'size': [900, 400]}" 
                                readonly="1"
                                nolabel="1"/>
                     </group>
