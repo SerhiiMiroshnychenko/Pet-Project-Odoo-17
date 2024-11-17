@@ -17,8 +17,6 @@
     'website': "https://github.com/SerhiiMiroshnychenko",
     'depends': ['product', 'stock'],
     'data': [
-        'security/ir.model.access.csv',
-        'wizards/stock_history_plot_wizard.xml',
         'views/product_views.xml',
     ],
     "assets": {

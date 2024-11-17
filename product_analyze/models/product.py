@@ -62,96 +62,6 @@ class ProductProduct(models.Model):
                 _logger.error(f"Error computing stock history data: {str(e)}")
                 product.stock_history_data = "[]"
 
-    def _generate_stock_history_plot(self):
-        """Generate combined plot for wizard view"""
-        self.ensure_one()
-        
-        try:
-            if self.stock_history_data:
-                # Parse JSON and convert dates back to datetime objects
-                history_data = json.loads(self.stock_history_data)
-                history = [{
-                    'date': self._deserialize_datetime(record['date']),
-                    'quantity': record['quantity']
-                } for record in history_data]
-            else:
-                history = self.get_stock_history()
-            
-            if not history:
-                return False
-
-            # Prepare data for plotting
-            dates = [record['date'] for record in history]
-            quantities = [record['quantity'] for record in history]
-            
-            # Calculate quantity changes for bar chart
-            qty_changes = []
-            for i in range(1, len(quantities)):
-                qty_changes.append(quantities[i] - quantities[i-1])
-
-            # Create figure with two subplots
-            fig = plt.figure(figsize=(12, 8))
-            
-            # Stock Level Plot (top)
-            ax1 = plt.subplot(2, 1, 1)
-            ax1.step(dates, quantities, where='post', color='blue', linewidth=2, 
-                    label='Stock Level')
-            ax1.scatter(dates, quantities, color='blue', s=50, zorder=5)
-            ax1.set_ylabel(f'Stock Level ({self.uom_id.name})', fontsize=12)
-            ax1.grid(True, linestyle='--', alpha=0.7)
-            ax1.legend()
-            
-            # Format dates on x-axis
-            ax1.tick_params(axis='x', rotation=45)
-            ax1.set_xticks(dates)
-            date_labels = [d.strftime('%Y-%m-%d') for d in dates]
-            ax1.set_xticklabels(date_labels, ha='right')
-            
-            # Stock Changes Plot (bottom)
-            ax2 = plt.subplot(2, 1, 2)
-            bars = ax2.bar(dates[1:], qty_changes, 
-                         color=['g' if x >= 0 else 'r' for x in qty_changes],
-                         alpha=0.6)
-            ax2.set_ylabel('Stock Changes', fontsize=12)
-            ax2.grid(True, linestyle='--', alpha=0.7)
-            
-            # Format dates on x-axis
-            ax2.tick_params(axis='x', rotation=45)
-            ax2.set_xticks(dates[1:])
-            date_labels = [d.strftime('%Y-%m-%d') for d in dates[1:]]
-            ax2.set_xticklabels(date_labels, ha='right')
-            
-            # Add value labels on bars
-            for bar in bars:
-                height = bar.get_height()
-                value = height if height >= 0 else -height
-                y_pos = height + 0.5 if height >= 0 else height - 0.5
-                ax2.text(bar.get_x() + bar.get_width()/2., y_pos,
-                        f'{value:+.1f}',
-                        ha='center', va='bottom' if height >= 0 else 'top',
-                        fontsize=10)
-            
-            # Add title for the entire figure
-            fig.suptitle(f'Stock History Analysis\n{self.name} ({self.default_code or "No Reference"})', 
-                        fontsize=14, y=0.95)
-            
-            # Adjust layout
-            plt.tight_layout()
-            
-            # Save plot
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
-                       facecolor='white', edgecolor='none', pad_inches=0.2)
-            plt.close(fig)
-            
-            # Convert to base64
-            buf.seek(0)
-            return base64.b64encode(buf.getvalue())
-            
-        except Exception as e:
-            _logger.error(f"Error generating stock history plot: {str(e)}")
-            return False
-
     def _compute_stock_level_plot(self):
         """Compute stock level history plot for form view"""
         for record in self:
@@ -175,7 +85,7 @@ class ProductProduct(models.Model):
                 quantities = [item['quantity'] for item in history]
                 
                 # Generate Stock Level Plot
-                fig, ax = plt.subplots(figsize=(12, 6))
+                fig, ax = plt.subplots()  # Default size * 2
                 
                 # Plot step chart
                 ax.step(dates, quantities, where='post', color='blue', linewidth=2, 
@@ -242,7 +152,7 @@ class ProductProduct(models.Model):
                     return
 
                 # Generate Stock Changes Plot
-                fig, ax = plt.subplots(figsize=(12, 6))
+                fig, ax = plt.subplots()  # Default size * 2
                 
                 # Plot bar chart
                 bars = ax.bar(dates[1:], qty_changes, 
@@ -332,87 +242,3 @@ class ProductProduct(models.Model):
             })
 
         return result
-
-    def show_stock_history(self):
-        """Generate and show stock history plot in popup window"""
-        history = self.get_stock_history()
-        
-        # Prepare data for plotting
-        dates = [record['date'] for record in history]
-        quantities = [record['quantity'] for record in history]
-        
-        # Calculate quantity changes for bar chart
-        qty_changes = []
-        for i in range(1, len(quantities)):
-            qty_changes.append(quantities[i] - quantities[i-1])
-        
-        # Create figure with two subplots sharing x-axis
-        fig = plt.figure(figsize=(12, 10))
-        
-        # Create grid spec to control subplot sizes and spacing
-        gs = fig.add_gridspec(2, 1, height_ratios=[2, 1], hspace=0.3)
-        
-        # Add title with padding
-        fig.suptitle(f'Stock History for {self.name}\n({self.default_code or "No Reference"})', 
-                    fontsize=14, y=0.95)
-        
-        # Create subplots
-        ax1 = fig.add_subplot(gs[0])
-        ax2 = fig.add_subplot(gs[1])
-        
-        # Plot step chart on the first subplot
-        ax1.step(dates, quantities, where='post', color='blue', linewidth=2, 
-                label='Stock Level')
-        ax1.scatter(dates, quantities, color='blue', s=50, zorder=5)
-        ax1.set_ylabel(f'Stock Level ({self.uom_id.name})', fontsize=12, labelpad=10)
-        ax1.grid(True, linestyle='--', alpha=0.7)
-        ax1.legend()
-        
-        # Format dates on x-axis
-        for ax in [ax1, ax2]:
-            ax.tick_params(axis='x', rotation=45)
-            labels = ax.get_xticklabels()
-            ax.set_xticklabels(labels, ha='right')
-        
-        # Plot bar chart on the second subplot
-        bars = ax2.bar(dates[1:], qty_changes, color=['g' if x >= 0 else 'r' for x in qty_changes],
-                      alpha=0.6)
-        ax2.set_ylabel('Stock Changes', fontsize=12, labelpad=10)
-        ax2.grid(True, linestyle='--', alpha=0.7)
-        
-        # Add value labels on bars
-        for bar in bars:
-            height = bar.get_height()
-            value = height if height >= 0 else -height
-            y_pos = height + 0.5 if height >= 0 else height - 0.5
-            ax2.text(bar.get_x() + bar.get_width()/2., y_pos,
-                    f'{value:+.1f}',
-                    ha='center', va='bottom' if height >= 0 else 'top',
-                    fontsize=10)
-        
-        # Adjust layout with specific padding
-        fig.set_tight_layout(True)
-        plt.subplots_adjust(top=0.9, bottom=0.15)
-        
-        # Save plot to memory with high quality
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
-                   facecolor='white', edgecolor='none')
-        plt.close()
-        
-        # Encode image to base64
-        buf.seek(0)
-        image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-        
-        # Return action to open wizard
-        return {
-            'name': 'Stock History Plot',
-            'type': 'ir.actions.act_window',
-            'res_model': 'stock.history.plot.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': {
-                'default_plot_image': image_base64,
-                'default_product_id': self.id,
-            },
-        }
