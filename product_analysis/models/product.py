@@ -27,11 +27,7 @@ class ProductProduct(models.Model):
         compute='_compute_stock_level_plot',
         # store=True
     )
-    stock_changes_plot = fields.Binary(
-        string='Stock Changes Plot',
-        compute='_compute_stock_changes_plot',
-        # store=True
-    )
+
     last_stock_update = fields.Datetime(
         string='Last Stock Update',
         readonly=True
@@ -119,82 +115,6 @@ class ProductProduct(models.Model):
             except Exception as e:
                 _logger.error(f"Error generating stock level plot: {str(e)}")
                 record.stock_history_plot = False
-
-    def _compute_stock_changes_plot(self):
-        """Compute stock changes plot for form view"""
-        for record in self:
-            try:
-                if record.stock_history_data:
-                    # Parse JSON and convert dates back to datetime objects
-                    history_data = json.loads(record.stock_history_data)
-                    history = [{
-                        'date': record._deserialize_datetime(item['date']),
-                        'quantity': item['quantity']
-                    } for item in history_data]
-                else:
-                    history = record.get_stock_history()
-                
-                if not history:
-                    record.stock_changes_plot = False
-                    return
-
-                # Prepare data for plotting
-                dates = [item['date'] for item in history]
-                quantities = [item['quantity'] for item in history]
-                
-                # Calculate quantity changes for bar chart
-                qty_changes = []
-                for i in range(1, len(quantities)):
-                    qty_changes.append(quantities[i] - quantities[i-1])
-
-                if not qty_changes:  # If we don't have enough data points
-                    record.stock_changes_plot = False
-                    return
-
-                # Generate Stock Changes Plot
-                fig, ax = plt.subplots()  # Default size * 2
-                
-                # Plot bar chart
-                bars = ax.bar(dates[1:], qty_changes, 
-                             color=['g' if x >= 0 else 'r' for x in qty_changes],
-                             alpha=0.6)
-                ax.set_ylabel('Stock Changes', fontsize=12)
-                ax.grid(True, linestyle='--', alpha=0.7)
-                
-                # Format dates on x-axis
-                ax.tick_params(axis='x', rotation=45)
-                ax.set_xticks(dates[1:])
-                date_labels = [d.strftime('%Y-%m-%d') for d in dates[1:]]
-                ax.set_xticklabels(date_labels, ha='right')
-                
-                # Add title
-                ax.set_title(f'Stock Changes\n{record.name} ({record.default_code or "No Reference"})', 
-                           fontsize=12, pad=20)
-                
-                # Add value labels on bars
-                for bar in bars:
-                    height = bar.get_height()
-                    value = height if height >= 0 else -height
-                    y_pos = height + 0.5 if height >= 0 else height - 0.5
-                    ax.text(bar.get_x() + bar.get_width()/2., y_pos,
-                            f'{value:+.1f}',
-                            ha='center', va='bottom' if height >= 0 else 'top',
-                            fontsize=10)
-                
-                # Adjust layout and save plot
-                plt.tight_layout()
-                buf = io.BytesIO()
-                fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
-                           facecolor='white', edgecolor='none', pad_inches=0.2)
-                plt.close(fig)
-                
-                # Convert to base64
-                buf.seek(0)
-                record.stock_changes_plot = base64.b64encode(buf.getvalue())
-                
-            except Exception as e:
-                _logger.error(f"Error generating stock changes plot: {str(e)}")
-                record.stock_changes_plot = False
 
     def get_stock_history(self):
         """
