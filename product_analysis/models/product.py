@@ -60,61 +60,51 @@ class ProductProduct(models.Model):
 
     def _compute_stock_level_plot(self):
         """Compute stock level history plot for form view"""
-        for record in self:
+        for product in self:
             try:
-                if record.stock_history_data:
-                    # Parse JSON and convert dates back to datetime objects
-                    history_data = json.loads(record.stock_history_data)
+                # Отримання історії
+                if product.stock_history_data:
+                    history_data = json.loads(product.stock_history_data)
                     history = [{
-                        'date': record._deserialize_datetime(item['date']),
+                        'date': datetime.strptime(item['date'], '%Y-%m-%d'),
                         'quantity': item['quantity']
                     } for item in history_data]
                 else:
-                    history = record.get_stock_history()
-                
-                if not history:
-                    record.stock_history_plot = False
-                    return
+                    history = product.get_stock_history()
 
-                # Prepare data for plotting
+                if not history:
+                    continue
+
+                # Підготовка даних
                 dates = [item['date'] for item in history]
                 quantities = [item['quantity'] for item in history]
-                
-                # Generate Stock Level Plot
-                fig, ax = plt.subplots()  # Default size * 2
-                
-                # Plot step chart
-                ax.step(dates, quantities, where='post', color='blue', linewidth=2, 
-                        label='Stock Level')
-                ax.scatter(dates, quantities, color='blue', s=50, zorder=5)
-                ax.set_ylabel(f'Stock Level ({record.uom_id.name})', fontsize=12)
-                ax.grid(True, linestyle='--', alpha=0.7)
-                ax.legend()
-                
-                # Format dates on x-axis
-                ax.tick_params(axis='x', rotation=45)
-                ax.set_xticks(dates)
-                date_labels = [d.strftime('%Y-%m-%d') for d in dates]
-                ax.set_xticklabels(date_labels, ha='right')
-                
-                # Add title
-                ax.set_title(f'Stock Level History\n{record.name} ({record.default_code or "No Reference"})', 
-                           fontsize=12, pad=20)
-                
-                # Adjust layout and save plot
+                dates_formatted = [date.strftime('%Y-%m-%d') for date in dates]
+
+                # Створення графіку
+                plt.figure(figsize=(10, 6))
+                plt.step(dates_formatted, quantities, where='post', marker='o', color='b', label='Кількість товару')
+                plt.xlabel('Дата визначення', fontsize=12)
+                plt.ylabel('Кількість товару', fontsize=12)
+                plt.title('Визначення кількості товару на складі', fontsize=14)
+                plt.grid(visible=True, linestyle='--', alpha=0.5)
+                plt.legend(fontsize=12)
+                plt.xticks(rotation=45, fontsize=10)
                 plt.tight_layout()
-                buf = io.BytesIO()
-                fig.savefig(buf, format='png', dpi=150, bbox_inches='tight', 
-                           facecolor='white', edgecolor='none', pad_inches=0.2)
-                plt.close(fig)
-                
-                # Convert to base64
-                buf.seek(0)
-                record.stock_history_plot = base64.b64encode(buf.getvalue())
-                
+
+                # Збереження графіку у файл
+                buffer = io.BytesIO()
+                plt.savefig(buffer, format='png')
+                buffer.seek(0)
+                image_data = buffer.read()
+                buffer.close()
+                product.stock_history_plot = base64.b64encode(image_data)
             except Exception as e:
-                _logger.error(f"Error generating stock level plot: {str(e)}")
-                record.stock_history_plot = False
+                _logger.error(f"Error generating new plot: {str(e)}")
+                product.stock_history_plot = False
+
+    def update_plot(self):
+        for product in self:
+            product._compute_stock_level_plot()
 
     def get_stock_history(self):
         """

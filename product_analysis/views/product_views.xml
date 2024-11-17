@@ -19,6 +19,7 @@
                                readonly="1"
                                nolabel="1"/>
                     </group>
+                    <button name="update_plot" type="object" string="Update"/>
                 </page>
             </xpath>
         </field>
