@@ -6,8 +6,8 @@
             <field name="tag">custom_button_action</field>
         </record>
 
-        <record id="eska_crm_lead_view_form" model="ir.ui.view">
-            <field name="name">eska.crm.lead.form</field>
+        <record id="mir_imp_lead_view_form" model="ir.ui.view">
+            <field name="name">mir_imp.crm.lead.form</field>
             <field name="model">crm.lead</field>
             <field name="inherit_id" ref="crm.crm_lead_view_form"/>
             <field name="arch" type="xml">

@@ -1,7 +1,7 @@
 import re
 import logging
 
-from odoo import models, api, _
+from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
@@ -9,6 +9,32 @@ _logger = logging.getLogger(__name__)
 
 class Partner(models.Model):
     _inherit = "res.partner"
+
+    html_content = fields.Html(
+        compute='_compute_html_content',
+        sanitize=False,
+        sanitize_tags=False,
+        sanitize_attributes=False)
+
+    def _compute_html_content(self):
+        for partner in self:
+            fields_info = []
+            # Get all fields of the model
+            sorted_fields = sorted(partner._fields.items(), key=lambda item: item[0])
+            for field_name, field in sorted_fields:
+                value = partner[field_name]
+                # Convert value to string representation
+                if isinstance(value, models.BaseModel):
+                    value = value.mapped('display_name')
+                fields_info.append(f"<i>{field_name}</i>: <b>{value}</b>")
+            info_data = '<br/>'.join(fields_info)
+            
+            # Create HTML content with Information button
+            html_content = f"""
+            <sheet>{info_data}</sheet>
+            """
+            
+            partner.html_content = html_content
 
     @api.constrains('email')
     def email_address_validate(self):

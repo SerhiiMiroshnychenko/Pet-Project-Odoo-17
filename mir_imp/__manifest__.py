@@ -24,6 +24,7 @@ A module to enhance Odoo functionality
     "data": [
         'views/imp_menu_views.xml',
         'views/crm_lead_views.xml',
+        'views/res_partner_views.xml',
         'report/report_saleorder_document.xml',
     ],
     "assets": {
