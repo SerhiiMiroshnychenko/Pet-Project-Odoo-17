@@ -1,3 +1,5 @@
+from matplotlib.dates import DateFormatter
+
 from odoo import models, fields, api
 from datetime import datetime, timedelta
 import logging
@@ -59,14 +61,14 @@ class ProductProduct(models.Model):
                 product.stock_history_data = "[]"
 
     def _compute_stock_level_plot(self):
-        """Compute stock level history plot for form view"""
+        """Compute stock level history plot for form view."""
         for product in self:
             try:
                 # Отримання історії
                 if product.stock_history_data:
                     history_data = json.loads(product.stock_history_data)
                     history = [{
-                        'date': datetime.strptime(item['date'], '%Y-%m-%d'),
+                        'date': datetime.strptime(item['date'], '%Y-%m-%d').date(),
                         'quantity': item['quantity']
                     } for item in history_data]
                 else:
@@ -78,25 +80,42 @@ class ProductProduct(models.Model):
                 # Підготовка даних
                 dates = [item['date'] for item in history]
                 quantities = [item['quantity'] for item in history]
-                dates_formatted = [date.strftime('%Y-%m-%d') for date in dates]
+                dates_formatted = [date.strftime('%d.%m.%y') for date in dates]
 
                 # Створення графіку
-                plt.figure(figsize=(10, 6))
-                plt.step(dates_formatted, quantities, where='post', marker='o', color='b', label='Кількість товару')
-                plt.xlabel('Дата визначення', fontsize=12)
-                plt.ylabel('Кількість товару', fontsize=12)
-                plt.title('Визначення кількості товару на складі', fontsize=14)
-                plt.grid(visible=True, linestyle='--', alpha=0.5)
-                plt.legend(fontsize=12)
-                plt.xticks(rotation=45, fontsize=10)
-                plt.tight_layout()
+                fig, ax = plt.subplots(figsize=(10, 5))
+                ax.step(dates, quantities, where='post', color='g', label='Кількість', linewidth=2)
+
+                # Додаємо точки у місцях зламу
+                ax.scatter(dates, quantities, color='red', zorder=5, label='Точки зламу')
+
+                # Додаємо підписи біля кожної точки
+                for x, y, label in zip(dates, quantities, dates_formatted):
+                    ax.annotate(label, xy=(x, y), xytext=(5, 5), textcoords="offset points",
+                                fontsize=10, color='blue', ha='center', va='bottom')
+
+                # Форматуємо осі
+                ax.set_title("Графік кількості за датами (ступінчастий)", fontsize=14)
+                ax.set_xlabel("Дати", fontsize=12)
+                ax.set_ylabel("Кількість", fontsize=12)
+                ax.xaxis.set_major_formatter(DateFormatter("%b %Y"))
+                ax.set_ylim(min(quantities) - max(quantities) * 0.1, max(quantities) * 1.1)  # Додаємо простір зверху і знизу
+                ax.grid(True, linestyle='--', alpha=0.7)
+
+                # Основне форматування осі X
+                plt.xticks(rotation=45)
+                ax.legend()
 
                 # Збереження графіку у файл
                 buffer = io.BytesIO()
+                plt.tight_layout()
                 plt.savefig(buffer, format='png')
                 buffer.seek(0)
                 image_data = buffer.read()
                 buffer.close()
+                plt.close(fig)
+
+                # Зберігаємо графік у полі моделі
                 product.stock_history_plot = base64.b64encode(image_data)
             except Exception as e:
                 _logger.error(f"Error generating new plot: {str(e)}")
