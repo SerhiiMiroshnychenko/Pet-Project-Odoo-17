@@ -15,13 +15,14 @@
     """,
     'author': "Serhii Miroshnychenko",
     'website': "https://github.com/SerhiiMiroshnychenko",
-    'depends': ['product', 'stock'],
+    'depends': ['product', 'sale_stock'],
     'data': [
         'views/product_views.xml',
     ],
     "assets": {
         "web.assets_frontend": [],
         "web.assets_backend": [
+            '/product_analysis/static/src/css/*.css',
         ],
     },
     'installable': True,
