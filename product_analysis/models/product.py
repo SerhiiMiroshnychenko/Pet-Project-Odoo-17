@@ -35,6 +35,8 @@ class ProductProduct(models.Model):
         readonly=True
     )
 
+    sales_orders_html = fields.Html(string='Sales Orders', compute='_compute_sales_orders_html')
+
     def _serialize_datetime(self, dt):
         """Convert datetime to string for JSON serialization"""
         return dt.isoformat() if dt else None
@@ -95,7 +97,7 @@ class ProductProduct(models.Model):
                                 fontsize=10, color='blue', ha='center', va='bottom')
 
                 # Форматуємо осі
-                ax.set_title("Графік кількості за датами (ступінчастий)", fontsize=14)
+                ax.set_title("Графік кількості за датами", fontsize=14)
                 ax.set_xlabel("Дати", fontsize=12)
                 ax.set_ylabel("Кількість", fontsize=12)
                 ax.xaxis.set_major_formatter(DateFormatter("%b %Y"))
@@ -171,3 +173,65 @@ class ProductProduct(models.Model):
             })
 
         return result
+
+    def _compute_sales_orders_html(self):
+        for product in self:
+            domain = [
+                ('order_line.product_id', '=', product.id),
+            ]
+            sale_orders = self.env['sale.order'].search(domain, order='date_order desc')
+
+            if not sale_orders:
+                product.sales_orders_html = '<p>No sales orders found for this product.</p>'
+                continue
+
+            html = ["""
+            <h3 class='text-muted'>Sales Order History</h3>
+            <ul style='list-style: none;'>
+            """]
+
+            for order in sale_orders:
+                order_line = order.order_line.filtered(lambda l: l.product_id.id == product.id)
+                product_qty = sum(line.product_uom_qty for line in order_line)
+                html.append(
+                    f"""<li style="
+                    display: inline-block;
+                    max-width: 100%; /* або конкретна ширина, якщо потрібно */
+                    white-space: nowrap; /* або 'normal', якщо потрібен перенос тексту */
+                    background-size: 20px;
+                    background-repeat: no-repeat;
+                    background-position: left center;
+                    background-image: url('/product_analysis/static/description/{order.state}.png');
+                    padding-left: 25px; /* щоб текст не перекривав зображення */
+                    ">
+                    [{order.date_order.strftime("%Y-%m-%d")}]
+                    <a href="/web#id={order.id}&view_type=form&model=sale.order">{order.name}</a>
+                     - {order.partner_id.name}
+                    <span class='text-muted'>(<i>quantity</i>: <b>{product_qty}</b>)</span></li><br/>""")
+
+            html.append('</ul>')
+
+            # Додаємо легенду після списку
+            html.append("<hr style='margin: 20px 0;'/>")  # Горизонтальна лінія
+            html.append("<div style='display: flex; flex-wrap: wrap; gap: 15px;'>")
+
+            states = {
+                'draft': 'Quotation',
+                'sent': '"Quotation Sent',
+                'sale': 'Sales Order',
+                'cancel': 'Cancelled'
+            }
+
+            for state, label in states.items():
+                html.append(f"""
+                                <div style='display: flex; align-items: center; margin-right: 15px;'>
+                                    <div style='width: 20px; height: 20px; background-image: url("/product_analysis/static/description/{state}.png");
+                                         background-size: contain; background-repeat: no-repeat; margin-right: 5px;'></div>
+                                    <span>{label}</span>
+                                </div>
+                            """)
+
+            html.append("</div></div>")
+
+            product.sales_orders_html = '\n'.join(html)
+            print(f"{ product.sales_orders_html = }")
