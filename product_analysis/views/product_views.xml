@@ -21,6 +21,9 @@
                     </group>
                     <button name="update_plot" type="object" string="Update"/>
                 </page>
+                <page string="Sales Orders" name="sales_orders">
+                    <field name="sales_orders_html" readonly="1"/>
+                </page>
             </xpath>
         </field>
     </record>
