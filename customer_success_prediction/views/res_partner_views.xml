@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_inherit_customer_rating" model="ir.ui.view">
+        <field name="name">view.partner.form.inherit.customer.rating</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Customer Analytics" name="customer_analytics">
+                    <button name="update_analytics" type="object" string="Update"/>
+                    <group>
+                        <group>
+                            <field name="sale_order_count"/>
+                            <field name="successful_order" widget="percentage"/>
+                        </group>
+                    </group>
+                    <group string="Orders History"/>
+                    <field name="all_order_ids" readonly="1" nolabel="1">
+                        <tree>
+                            <field name="name"/>
+                            <field name="date_order"/>
+                            <field name="partner_id"/>
+                            <field name="user_id"/>
+                            <field name="state"/>
+                        </tree>
+                    </field>
+                    <group string="Analytics Charts"/>
+                    <field name="orders_chart" widget="image" options="{'preview_image': 'orders_chart', 'size': [1000, 500]}"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
