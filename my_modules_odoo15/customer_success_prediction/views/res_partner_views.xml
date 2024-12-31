@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_inherit_customer_rating" model="ir.ui.view">
+        <field name="name">view.partner.form.inherit.customer.rating</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Customer Analytics" name="customer_analytics">
+                    <button name="update_analytics" type="object" string="Update"/>
+                    <group>
+                        <group>
+                            <field name="customer_since"/>
+                            <field name="sale_order_count"/>
+                            <field name="successful_order" widget="percentage"/>
+                        </group>
+                        <group>
+                            <field name="total_orders_amount" widget="monetary"/>
+                            <field name="successful_orders_amount" widget="monetary"/>
+                            <field name="failed_orders_amount" widget="monetary"/>
+                        </group>
+                        <group>
+                            <field name="average_order_amount" widget="monetary"/>
+                            <field name="average_successful_amount" widget="monetary"/>
+                            <field name="average_failed_amount" widget="monetary"/>
+                        </group>
+                    </group>
+                    <group string="Orders History"/>
+                    <field name="all_order_ids" readonly="1" nolabel="1">
+                        <tree>
+                            <field name="name"/>
+                            <field name="date_order"/>
+                            <field name="partner_id"/>
+                            <field name="user_id"/>
+                            <field name="state"/>
+                        </tree>
+                    </field>
+                    <group string="Analytics Charts"/>
+                        <field name="orders_chart_bar" widget="image" options="{'preview_image': 'orders_chart_bar', 'size': [800, 400]}" nolabel="1"/>
+                        <field name="orders_chart_line" widget="image" options="{'preview_image': 'orders_chart_line', 'size': [800, 400]}" nolabel="1"/>
+                        <field name="success_avg_chart" widget="image" options="{'preview_image': 'success_avg_chart', 'size': [800, 400]}" nolabel="1"/>
+                        <field name="success_total_chart" widget="image" options="{'preview_image': 'success_total_chart', 'size': [800, 400]}" nolabel="1"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Додаємо поля в tree view -->
+    <record id="view_partner_tree_inherit_success" model="ir.ui.view">
+        <field name="name">res.partner.tree.inherit.success</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='email']" position="before">
+                <field name="customer_since"/>
+                <field name="sale_order_count"/>
+                <field name="total_orders_amount" sum="Total" widget="monetary"/>
+                <field name="successful_orders_amount" sum="Total Successful" widget="monetary"/>
+                <field name="average_order_amount" widget="monetary"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
