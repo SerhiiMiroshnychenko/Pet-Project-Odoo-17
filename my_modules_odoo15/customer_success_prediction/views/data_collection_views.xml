@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_customer_data_collection_form" model="ir.ui.view">
+        <field name="name">customer.data.collection.form</field>
+        <field name="model">customer.data.collection</field>
+        <field name="arch" type="xml">
+            <form string="Data Collection">
+                <header>
+                    <button name="action_collect_data"
+                            string="Collect Data"
+                            type="object"
+                            class="oe_highlight"/>
+                    <button name="action_create_charts"
+                            string="Create Charts"
+                            type="object"
+                            class="oe_highlight"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="e.g. Monthly Data Collection"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Data Source">
+                            <field name="data_file" filename="data_filename" widget="binary" string="Upload CSV File"/>
+                            <field name="data_filename" invisible="1"/>
+                            <div colspan="2" class="text-muted" attrs="{'invisible': [('state', '!=', 'draft')]}">
+                                Upload a CSV file or use the "Collect Data" button to gather data from the system.
+                            </div>
+                        </group>
+                        <group string="Date Range (for data collection)">
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <div colspan="2" class="text-muted">
+                                Specify date range if you want to collect data from the system.
+                            </div>
+                        </group>
+                    </group>
+
+                    <notebook attrs="{'invisible': [('state', '=', 'draft')]}">
+                        <!-- General Statistics -->
+                        <page string="General Statistics" name="general_statistics">
+                            <group>
+                                <group string="Key Metrics">
+                                    <field name="total_partners"/>
+                                    <field name="total_orders"/>
+                                    <field name="total_success_rate" widget="percentage"/>
+                                </group>
+                                <group string="Distribution">
+                                    <field name="orders_by_state"/>
+                                    <field name="partners_by_success_rate"/>
+                                </group>
+                            </group>
+                        </page>
+
+                        <!-- Monthly Analysis -->
+                        <page string="Monthly Analysis" name="monthly_analysis">
+                            <field name="combined_chart" widget="image"
+                                   options="{'preview_image': 'combined_chart', 'size': [1000, 500]}"/>
+                        </page>
+                        <!-- Distribution Charts -->
+                        <page string="Distribution Analysis" name="distribution_analysis">
+                            <field name="orders_by_state_chart" widget="image"
+                                   options="{'preview_image': 'orders_by_state_chart', 'size': [800, 400]}"/>
+                            <field name="partners_by_rate_chart" widget="image"
+                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [800, 400]}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_customer_data_collection_tree" model="ir.ui.view">
+        <field name="name">customer.data.collection.tree</field>
+        <field name="model">customer.data.collection</field>
+        <field name="arch" type="xml">
+            <tree string="Data Collections">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="total_partners"/>
+                <field name="total_orders"/>
+                <field name="total_success_rate" widget="percentage"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_customer_data_collection" model="ir.actions.act_window">
+        <field name="name">Data Collection</field>
+        <field name="res_model">customer.data.collection</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_customer_data_collection"
+              name="Customer Analytics"
+              parent="sale.sale_menu_root"
+              action="action_customer_data_collection"
+              sequence="100"/>
+</odoo>
