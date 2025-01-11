@@ -30,6 +30,7 @@ This module adds customer success prediction functionality:
         "views/res_partner_views.xml",
         "views/data_collection_views.xml",
         "views/menu_views.xml",
+        "views/partner_analysis_views.xml",
     ],
     "assets": {},
     "external_dependencies": {

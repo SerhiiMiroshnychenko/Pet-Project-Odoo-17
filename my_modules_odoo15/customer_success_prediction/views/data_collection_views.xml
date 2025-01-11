@@ -1,5 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="view_customer_data_collection_tree" model="ir.ui.view">
+        <field name="name">customer.data.collection.tree</field>
+        <field name="model">customer.data.collection</field>
+        <field name="arch" type="xml">
+            <tree string="Data Collections">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="data_filename"/>
+                <field name="total_partners"/>
+                <field name="total_orders"/>
+                <field name="total_success_rate" widget="percentage"/>
+            </tree>
+        </field>
+    </record>
+
     <record id="view_customer_data_collection_form" model="ir.ui.view">
         <field name="name">customer.data.collection.form</field>
         <field name="model">customer.data.collection</field>
@@ -10,11 +26,18 @@
                             string="Collect Data"
                             type="object"
                             class="oe_highlight"/>
+                    <button name="action_compute_statistics"
+                            string="Compute Statistics"
+                            type="object"
+                            class="oe_highlight"/>
                     <button name="action_create_charts"
                             string="Create Charts"
                             type="object"
                             class="oe_highlight"/>
-                    <field name="state" widget="statusbar"/>
+                    <button name="action_visualize"
+                            string="Visualize It"
+                            type="object"
+                            class="oe_highlight"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -26,24 +49,20 @@
                         <group string="Data Source">
                             <field name="data_file" filename="data_filename" widget="binary" string="Upload CSV File"/>
                             <field name="data_filename" invisible="1"/>
-                            <div colspan="2" class="text-muted" attrs="{'invisible': [('state', '!=', 'draft')]}">
+                            <div colspan="2" class="text-muted" attrs="{'invisible': [('data_file', '!=', False)]}">
                                 Upload a CSV file or use the "Collect Data" button to gather data from the system.
-                            </div>
-                        </group>
-                        <group string="Date Range (for data collection)">
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <div colspan="2" class="text-muted">
-                                Specify date range if you want to collect data from the system.
                             </div>
                         </group>
                     </group>
 
-                    <notebook attrs="{'invisible': [('state', '=', 'draft')]}">
+                    <notebook attrs="{'invisible': [('data_file', '=', False)]}">
                         <!-- General Statistics -->
                         <page string="General Statistics" name="general_statistics">
                             <group>
                                 <group string="Key Metrics">
+                                    <field name="date_range_display"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
                                     <field name="total_partners"/>
                                     <field name="total_orders"/>
                                     <field name="total_success_rate" widget="percentage"/>
@@ -57,35 +76,54 @@
 
                         <!-- Monthly Analysis -->
                         <page string="Monthly Analysis" name="monthly_analysis">
-                            <field name="combined_chart" widget="image"
-                                   options="{'preview_image': 'combined_chart', 'size': [1000, 500]}"/>
+                            <field name="monthly_analysis_chart" widget="image"
+                                   options="{'preview_image': 'monthly_analysis_chart', 'size': [600, 400]}"/>
                         </page>
                         <!-- Distribution Charts -->
                         <page string="Distribution Analysis" name="distribution_analysis">
                             <field name="orders_by_state_chart" widget="image"
-                                   options="{'preview_image': 'orders_by_state_chart', 'size': [800, 400]}"/>
+                                   options="{'preview_image': 'orders_by_state_chart', 'size': [600, 400]}"/>
                             <field name="partners_by_rate_chart" widget="image"
-                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [800, 400]}"/>
+                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [600, 400]}"/>
+                            <field name="partners_by_rate_plot" widget="image"
+                                   options="{'preview_image': 'partners_by_rate_plot', 'size': [600, 400]}"/>
+                        </page>
+                        <!-- Success Rate Analysis -->
+                        <page string="Success Rate Analysis" name="success_rate_analysis">
+                            <field name="amount_success_chart" widget="image"
+                                   options="{'preview_image': 'amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="partner_age_success_chart" widget="image"
+                                   options="{'preview_image': 'partner_age_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="partner_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'partner_orders_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="total_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'total_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="success_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'success_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="avg_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'avg_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="avg_success_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'avg_success_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="weekday_success_chart" widget="image"
+                                   options="{'preview_image': 'weekday_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="month_success_chart" widget="image"
+                                   options="{'preview_image': 'month_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
                         </page>
                     </notebook>
                 </sheet>
             </form>
-        </field>
-    </record>
-
-    <record id="view_customer_data_collection_tree" model="ir.ui.view">
-        <field name="name">customer.data.collection.tree</field>
-        <field name="model">customer.data.collection</field>
-        <field name="arch" type="xml">
-            <tree string="Data Collections">
-                <field name="name"/>
-                <field name="date_from"/>
-                <field name="date_to"/>
-                <field name="total_partners"/>
-                <field name="total_orders"/>
-                <field name="total_success_rate" widget="percentage"/>
-                <field name="state"/>
-            </tree>
         </field>
     </record>
 
