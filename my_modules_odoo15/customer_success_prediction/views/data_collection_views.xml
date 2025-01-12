@@ -77,16 +77,16 @@
                         <!-- Monthly Analysis -->
                         <page string="Monthly Analysis" name="monthly_analysis">
                             <field name="monthly_analysis_chart" widget="image"
-                                   options="{'preview_image': 'monthly_analysis_chart', 'size': [600, 400]}"/>
+                                   options="{'preview_image': 'monthly_analysis_chart', 'size': [1000, 600]}"/>
                         </page>
                         <!-- Distribution Charts -->
                         <page string="Distribution Analysis" name="distribution_analysis">
                             <field name="orders_by_state_chart" widget="image"
-                                   options="{'preview_image': 'orders_by_state_chart', 'size': [600, 400]}"/>
+                                   options="{'preview_image': 'orders_by_state_chart', 'size': [1000, 600]}"/>
                             <field name="partners_by_rate_chart" widget="image"
-                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [600, 400]}"/>
+                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [1000, 600]}"/>
                             <field name="partners_by_rate_plot" widget="image"
-                                   options="{'preview_image': 'partners_by_rate_plot', 'size': [600, 400]}"/>
+                                   options="{'preview_image': 'partners_by_rate_plot', 'size': [1000, 600]}"/>
                         </page>
                         <!-- Success Rate Analysis -->
                         <page string="Success Rate Analysis" name="success_rate_analysis">
@@ -119,6 +119,33 @@
                                    nolabel="1"/>
                             <field name="month_success_chart" widget="image"
                                    options="{'preview_image': 'month_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="cumulative_success_rate_chart" widget="image"
+                                   options="{'preview_image': 'cumulative_success_rate_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="order_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'order_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="success_order_intensity_chart" widget="image"
+                                   options="{'preview_image': 'success_order_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="amount_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'amount_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="success_amount_intensity_chart" widget="image"
+                                   options="{'preview_image': 'success_amount_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="monthly_success_rate_chart" widget="image"
+                                   options="{'preview_image': 'monthly_success_rate_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="monthly_volume_success_chart" widget="image"
+                                   options="{'preview_image': 'monthly_volume_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="monthly_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'monthly_orders_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                             <field name="payment_term_success_chart" widget="image"
+                                   options="{'preview_image': 'payment_term_success_chart', 'size': [1000, 1000]}"
                                    nolabel="1"/>
                         </page>
                     </notebook>

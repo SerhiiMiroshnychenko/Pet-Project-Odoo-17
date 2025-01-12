@@ -2,15 +2,17 @@ import base64
 import csv
 import logging
 import matplotlib
+
 matplotlib.use('Agg')
 from io import BytesIO, StringIO
 from datetime import datetime
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import numpy as np
-
+from dateutil.relativedelta import relativedelta
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+
 
 class CustomerDataCollection(models.Model):
     _name = 'customer.data.collection'
@@ -32,10 +34,14 @@ class CustomerDataCollection(models.Model):
 
     # Distribution fields
     orders_by_state = fields.Text(string='Distribution of orders by status', compute='_compute_statistics', store=True)
-    orders_by_state_chart = fields.Binary(string='Orders by Status Distribution', compute='_compute_distribution_charts', store=True)
-    partners_by_success_rate = fields.Text(string='Distribution of customers by success_rate', compute='_compute_statistics', store=True)
-    partners_by_rate_chart = fields.Binary(string='Partners by Success Rate Distribution', compute='_compute_distribution_charts', store=True)
-    partners_by_rate_plot = fields.Binary(string='Partners Success Rate Plot', compute='_compute_distribution_charts', store=True)
+    orders_by_state_chart = fields.Binary(string='Orders by Status Distribution',
+                                          compute='_compute_distribution_charts', store=True)
+    partners_by_success_rate = fields.Text(string='Distribution of customers by success_rate',
+                                           compute='_compute_statistics', store=True)
+    partners_by_rate_chart = fields.Binary(string='Partners by Success Rate Distribution',
+                                           compute='_compute_distribution_charts', store=True)
+    partners_by_rate_plot = fields.Binary(string='Partners Success Rate Plot', compute='_compute_distribution_charts',
+                                          store=True)
     monthly_analysis_chart = fields.Binary(string='Monthly Orders Analysis', compute='_compute_monthly_charts')
 
     # Amount-Success Rate Analysis
@@ -87,6 +93,51 @@ class CustomerDataCollection(models.Model):
         compute='_compute_amount_success_charts',
         store=True
     )
+    cumulative_success_rate_chart = fields.Binary(
+        string='Cumulative Success Rate Over Time',
+        compute='_compute_cumulative_success_rate_chart',
+        store=True
+    )
+    order_intensity_success_chart = fields.Binary(
+        string='Success Rate by Total Order Intensity',
+        compute='_compute_order_intensity_chart',
+        store=True
+    )
+    success_order_intensity_chart = fields.Binary(
+        string='Success Rate by Successful Order Intensity',
+        compute='_compute_success_order_intensity_chart',
+        store=True
+    )
+    amount_intensity_success_chart = fields.Binary(
+        string='Success Rate by Total Amount Intensity',
+        compute='_compute_amount_intensity_chart',
+        store=True
+    )
+    success_amount_intensity_chart = fields.Binary(
+        string='Success Rate by Successful Amount Intensity',
+        compute='_compute_success_amount_intensity_chart',
+        store=True
+    )
+    monthly_success_rate_chart = fields.Binary(
+        string='Monthly Success Rate',
+        compute='_compute_monthly_success_rate_chart',
+        store=True
+    )
+    monthly_volume_success_chart = fields.Binary(
+        string='Success Rate by Monthly Order Volume',
+        compute='_compute_monthly_volume_success_chart',
+        store=True
+    )
+    monthly_orders_success_chart = fields.Binary(
+        string='Success Rate by Monthly Orders Count',
+        compute='_compute_monthly_orders_success_chart',
+        store=True
+    )
+    payment_term_success_chart = fields.Binary(
+        string='Success Rate by Payment Terms',
+        compute='_compute_payment_term_success_chart',
+        store=True
+    )
 
     def action_collect_data(self):
         """Collect data from database and save to CSV"""
@@ -136,7 +187,8 @@ class CustomerDataCollection(models.Model):
         self.date_to = max_date
 
         # Header
-        csv_data = [['order_id', 'partner_id', 'date_order', 'state', 'amount_total', 'partner_create_date', 'user_id']]
+        csv_data = [['order_id', 'partner_id', 'date_order', 'state', 'amount_total',
+                     'partner_create_date', 'user_id', 'payment_term_id']]
 
         # Data rows
         for order in orders:
@@ -147,7 +199,8 @@ class CustomerDataCollection(models.Model):
                 order.state,
                 order.amount_total,
                 order.partner_id.create_date,
-                order.user_id.id if order.user_id else False
+                order.user_id.id if order.user_id else False,
+                order.payment_term_id.id if order.payment_term_id else False
             ])
 
         print(f"CSV data prepared. Total rows: {len(csv_data)}")
@@ -158,7 +211,6 @@ class CustomerDataCollection(models.Model):
             raise UserError(_('Please collect data or upload a CSV file first.'))
         self._compute_statistics()
 
-
     def _validate_csv_data(self, csv_content):
         """Validate CSV file structure and content"""
         try:
@@ -166,7 +218,8 @@ class CustomerDataCollection(models.Model):
             reader = csv.reader(csv_file)
             header = next(reader)
 
-            required_columns = ['order_id', 'partner_id', 'date_order', 'state', 'amount_total', 'partner_create_date', 'user_id']
+            required_columns = ['order_id', 'partner_id', 'date_order', 'state', 'amount_total',
+                                'partner_create_date', 'user_id', 'payment_term_id']
             if not all(col in header for col in required_columns):
                 raise UserError(_('Invalid CSV format. Required columns: %s') % ', '.join(required_columns))
 
@@ -206,7 +259,9 @@ class CustomerDataCollection(models.Model):
                     continue
 
                 # Ensure required fields are present
-                if not all(field in row for field in ['order_id', 'partner_id', 'date_order', 'state', 'amount_total', 'partner_create_date', 'user_id']):
+                if not all(field in row for field in
+                           ['order_id', 'partner_id', 'date_order', 'state', 'amount_total',
+                            'partner_create_date', 'user_id', 'payment_term_id']):
                     print(f"Missing required fields in row: {row}")
                     continue
 
@@ -218,33 +273,6 @@ class CustomerDataCollection(models.Model):
         except Exception as e:
             print(f"Error reading CSV data: {str(e)}")
             return []
-
-    @api.depends('date_from', 'date_to')
-    def _compute_date_range_display(self):
-        """Compute display string for date range"""
-        for record in self:
-            if record.date_from and record.date_to:
-                # Calculate the difference in days
-                delta = (record.date_to - record.date_from).days
-
-                # Convert to years and months
-                years = delta // 365
-                remaining_days = delta % 365
-                months = remaining_days // 30
-                days = remaining_days % 30
-
-                # Build the display string
-                parts = []
-                if years > 0:
-                    parts.append(f"{years} {'year' if years == 1 else 'years'}")
-                if months > 0:
-                    parts.append(f"{months} {'month' if months == 1 else 'months'}")
-                if days > 0 and not years:  # show days only if period is less than a year
-                    parts.append(f"{days} {'day' if days == 1 else 'days'}")
-
-                record.date_range_display = f"{' '.join(parts)} (from {record.date_from.strftime('%d.%m.%Y')} to {record.date_to.strftime('%d.%m.%Y')})"
-            else:
-                record.date_range_display = "Period not defined"
 
     def action_create_charts(self):
         """Create charts from CSV data"""
@@ -296,6 +324,15 @@ class CustomerDataCollection(models.Model):
             self._compute_weekday_charts()
             self._compute_partner_orders_charts()
             self._compute_amount_success_charts()
+            self._compute_cumulative_success_rate_chart()
+            self._compute_order_intensity_chart()
+            self._compute_success_order_intensity_chart()
+            self._compute_amount_intensity_chart()
+            self._compute_success_amount_intensity_chart()
+            self._compute_monthly_success_rate_chart()
+            self._compute_monthly_volume_success_chart()
+            self._compute_monthly_orders_success_chart()
+            self._compute_payment_term_success_chart()
 
             return True
 
@@ -360,9 +397,9 @@ class CustomerDataCollection(models.Model):
 
                 # Форматуємо діапазон в залежності від розміру чисел
                 if max_amount >= 1000000:  # Більше 1 млн
-                    range_str = f'{min_amount/1000000:.1f}M-{max_amount/1000000:.1f}M'
+                    range_str = f'{min_amount / 1000000:.1f}M-{max_amount / 1000000:.1f}M'
                 elif max_amount >= 1000:  # Більше 1000
-                    range_str = f'{min_amount/1000:.0f}K-{max_amount/1000:.0f}K'
+                    range_str = f'{min_amount / 1000:.0f}K-{max_amount / 1000:.0f}K'
                 else:
                     range_str = f'{min_amount:.0f}-{max_amount:.0f}'
 
@@ -399,7 +436,7 @@ class CustomerDataCollection(models.Model):
 
             # Створюємо градієнт кольорів від червоного до зеленого в залежності від success rate
             colors = ['#ff4d4d' if rate < 50 else '#00cc00' for rate in y_points]
-            sizes = [max(80, min(150, count/2)) for count in counts]  # Розмір точки залежить від кількості замовлень
+            sizes = [max(80, min(150, count / 2)) for count in counts]  # Розмір точки залежить від кількості замовлень
 
             # Малюємо точки
             scatter = plt.scatter(x_points, y_points, s=sizes, alpha=0.6, c=colors)
@@ -407,8 +444,9 @@ class CustomerDataCollection(models.Model):
             # Розраховуємо середню кількість ордерів на точку
             avg_orders = sum(counts) // len(counts) if counts else 0
 
-            plt.title(f'Success Rate by Order Amount\n(each point represents ~{avg_orders} orders, point size shows relative number in range)',
-                      pad=20, fontsize=12)
+            plt.title(
+                f'Success Rate by Order Amount\n(each point represents ~{avg_orders} orders, point size shows relative number in range)',
+                pad=20, fontsize=12)
             plt.xlabel('Order Amount Range', fontsize=10)
             plt.ylabel('Success Rate (%)', fontsize=10)
 
@@ -420,7 +458,8 @@ class CustomerDataCollection(models.Model):
                 plt.xticks(range(len(data['ranges'])), data['ranges'],
                            rotation=45, ha='right')
             else:
-                plt.xticks(range(len(data['ranges']))[::2], [data['ranges'][i] for i in range(0, len(data['ranges']), 2)],
+                plt.xticks(range(len(data['ranges']))[::2],
+                           [data['ranges'][i] for i in range(0, len(data['ranges']), 2)],
                            rotation=45, ha='right')
 
             plt.grid(True, linestyle='--', alpha=0.7)
@@ -553,9 +592,9 @@ class CustomerDataCollection(models.Model):
 
                 # Форматуємо діапазон
                 if max_age >= 365:
-                    range_str = f'{min_age/365:.1f}y-{max_age/365:.1f}y'
+                    range_str = f'{min_age / 365:.1f}y-{max_age / 365:.1f}y'
                 elif max_age >= 30:
-                    range_str = f'{min_age/30:.0f}m-{max_age/30:.0f}m'
+                    range_str = f'{min_age / 30:.0f}m-{max_age / 30:.0f}m'
                 else:
                     range_str = f'{min_age}d-{max_age}d'
 
@@ -595,7 +634,7 @@ class CustomerDataCollection(models.Model):
 
             # Створюємо градієнт кольорів від червоного до зеленого в залежності від success rate
             colors = ['#ff4d4d' if rate < 50 else '#00cc00' for rate in y_points]
-            sizes = [max(80, min(150, count/2)) for count in counts]  # Розмір точки залежить від кількості замовлень
+            sizes = [max(80, min(150, count / 2)) for count in counts]  # Розмір точки залежить від кількості замовлень
 
             # Малюємо точки
             scatter = plt.scatter(x_points, y_points, s=sizes, alpha=0.6, c=colors)
@@ -603,8 +642,9 @@ class CustomerDataCollection(models.Model):
             # Розраховуємо середню кількість ордерів на точку
             avg_orders = sum(counts) // len(counts) if counts else 0
 
-            plt.title(f'Success Rate by Partner Age\n(each point represents ~{avg_orders} orders, point size shows relative number in range)',
-                      pad=20, fontsize=12)
+            plt.title(
+                f'Success Rate by Partner Age\n(each point represents ~{avg_orders} orders, point size shows relative number in range)',
+                pad=20, fontsize=12)
             plt.xlabel('Partner Age (d=days, m=months, y=years)', fontsize=10)
             plt.ylabel('Success Rate (%)', fontsize=10)
 
@@ -616,7 +656,8 @@ class CustomerDataCollection(models.Model):
                 plt.xticks(range(len(data['ranges'])), data['ranges'],
                            rotation=45, ha='right')
             else:
-                plt.xticks(range(len(data['ranges']))[::2], [data['ranges'][i] for i in range(0, len(data['ranges']), 2)],
+                plt.xticks(range(len(data['ranges']))[::2],
+                           [data['ranges'][i] for i in range(0, len(data['ranges']), 2)],
                            rotation=45, ha='right')
 
             plt.grid(True, linestyle='--', alpha=0.7)
@@ -696,7 +737,8 @@ class CustomerDataCollection(models.Model):
             # Calculate success rate ranges
             success_rate_ranges = defaultdict(int)
             for partner_data in partners_success_rate.values():
-                success_rate = (partner_data['successful'] / partner_data['total'] * 100) if partner_data['total'] > 0 else 0
+                success_rate = (partner_data['successful'] / partner_data['total'] * 100) if partner_data[
+                                                                                                 'total'] > 0 else 0
 
                 # Розподіляємо по діапазонах
                 if success_rate == 100:
@@ -757,8 +799,8 @@ class CustomerDataCollection(models.Model):
                 state_order = ['draft', 'sent', 'sale', 'cancel']
                 state_colors = {
                     'draft': '#808080',  # Gray
-                    'sent': '#FFD700',   # Yellow
-                    'sale': '#28a745',   # Green
+                    'sent': '#FFD700',  # Yellow
+                    'sale': '#28a745',  # Green
                     'cancel': '#dc3545'  # Red
                 }
 
@@ -843,7 +885,35 @@ class CustomerDataCollection(models.Model):
             finally:
                 plt.close('all')
 
+    @api.depends('date_from', 'date_to')
+    def _compute_date_range_display(self):
+        """Compute display string for date range"""
+        for record in self:
+            if record.date_from and record.date_to:
+                # Calculate the difference in days
+                delta = (record.date_to - record.date_from).days
+
+                # Convert to years and months
+                years = delta // 365
+                remaining_days = delta % 365
+                months = remaining_days // 30
+                days = remaining_days % 30
+
+                # Build the display string
+                parts = []
+                if years > 0:
+                    parts.append(f"{years} {'year' if years == 1 else 'years'}")
+                if months > 0:
+                    parts.append(f"{months} {'month' if months == 1 else 'months'}")
+                if days > 0 and not years:  # show days only if period is less than a year
+                    parts.append(f"{days} {'day' if days == 1 else 'days'}")
+
+                record.date_range_display = f"{' '.join(parts)} (from {record.date_from.strftime('%d.%m.%Y')} to {record.date_to.strftime('%d.%m.%Y')})"
+            else:
+                record.date_range_display = "Period not defined"
+
     def _create_salesperson_success_chart(self, data):
+        """Create chart showing success rate by salesperson"""
         if not data:
             return False
 
@@ -861,7 +931,7 @@ class CustomerDataCollection(models.Model):
             # Add value labels above bars
             for i, (bar, orders) in enumerate(zip(bars, total_orders)):
                 height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2, height + 2,
+                plt.text(bar.get_x() + bar.get_width() / 2, height + 2,
                          f'{orders}',
                          ha='right', va='bottom',
                          rotation=90,
@@ -998,7 +1068,8 @@ class CustomerDataCollection(models.Model):
 
             # Calculate success rate for each month
             for month_data in monthly_data.values():
-                month_data['rate'] = (month_data['successful'] / month_data['orders'] * 100) if month_data['orders'] > 0 else 0
+                month_data['rate'] = (month_data['successful'] / month_data['orders'] * 100) if month_data[
+                                                                                                    'orders'] > 0 else 0
 
             # Sort months chronologically
             sorted_months = sorted(monthly_data.keys(),
@@ -1056,10 +1127,11 @@ class CustomerDataCollection(models.Model):
             lines2, labels2 = ax2.get_legend_handles_labels()
             ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
 
-            # Adjust layout
+            # Adjust layout and y-axis limit
+            plt.ylim(0, max(successful_data) * 1.15)
             plt.tight_layout()
 
-            # Save to buffer
+            # Save chart
             buffer = BytesIO()
             fig.savefig(buffer, format='png', bbox_inches='tight', dpi=300)
             plt.close()
@@ -1072,8 +1144,7 @@ class CustomerDataCollection(models.Model):
         finally:
             plt.close('all')
 
-    @staticmethod
-    def _create_distribution_chart(data, title, xlabel, ylabel, colors):
+    def _create_distribution_chart(self, data, title, xlabel, ylabel, colors):
         """Helper function for creating distribution charts"""
         try:
             # Create figure
@@ -1102,7 +1173,7 @@ class CustomerDataCollection(models.Model):
             # Add values above bars
             for bar in bars:
                 height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height,
+                ax.text(bar.get_x() + bar.get_width() / 2., height,
                         f'{int(height)}',
                         ha='center', va='bottom')
 
@@ -1145,7 +1216,7 @@ class CustomerDataCollection(models.Model):
             # Add order count labels
             for i, (bar, orders) in enumerate(zip(bars, total_orders)):
                 height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2, height + 1,
+                plt.text(bar.get_x() + bar.get_width() / 2, height + 1,
                          f'{orders}',
                          ha='center', va='bottom',
                          rotation=0,
@@ -1204,7 +1275,7 @@ class CustomerDataCollection(models.Model):
             # Add order count labels
             for i, (bar, orders) in enumerate(zip(bars, total_orders)):
                 height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2, height + 1,
+                plt.text(bar.get_x() + bar.get_width() / 2, height + 1,
                          f'{orders}',
                          ha='center', va='bottom',
                          rotation=0,
@@ -1220,7 +1291,7 @@ class CustomerDataCollection(models.Model):
             plt.grid(True, linestyle='--', alpha=0.7, zorder=0)
 
             # Configure X axis labels
-            plt.xticks(rotation=45, ha='right')
+            plt.xticks(rotation=45)
 
             # Set Y axis limits
             plt.ylim(0, max(success_rates) * 1.15)
@@ -1339,68 +1410,114 @@ class CustomerDataCollection(models.Model):
             # Sort by total orders
             success_data.sort(key=lambda x: x[0])
 
-            # Group data by order count ranges
-            ranges = [1, 2, 3, 5, 10, 20, 50, 100, float('inf')]
-            range_stats = {i: {'total': 0, 'sum_rate': 0} for i in range(len(ranges))}
+            total_points = len(success_data)
+            if total_points == 0:
+                return False
 
-            for total_orders, success_rate in success_data:
-                for i, upper_bound in enumerate(ranges):
-                    if total_orders <= upper_bound:
-                        range_stats[i]['total'] += 1
-                        range_stats[i]['sum_rate'] += success_rate
-                        break
+            # Визначаємо кількість груп (зменшуємо якщо партнерів мало)
+            num_groups = min(30, total_points // 20)  # Мінімум 20 партнерів на групу
+            if num_groups < 5:  # Якщо груп менше 5, встановлюємо мінімум 5 груп
+                num_groups = 5
 
-            # Calculate average success rate for each range
-            x_labels = []
-            success_rates = []
-            partners_count = []
+            # Розраховуємо розмір кожної групи
+            group_size = total_points // num_groups
+            remainder = total_points % num_groups
 
-            for i in range(len(ranges)):
-                if range_stats[i]['total'] > 0:
-                    if i == len(ranges) - 1:
-                        x_labels.append(f'>{ranges[i-1]}')
-                    elif i == 0:
-                        x_labels.append(f'1')
-                    else:
-                        x_labels.append(f'{ranges[i-1]+1}-{ranges[i]}')
+            # Ініціалізуємо результат
+            result = {
+                'ranges': [],
+                'rates': [],
+                'orders_count': []
+            }
 
-                    avg_rate = range_stats[i]['sum_rate'] / range_stats[i]['total']
-                    success_rates.append(avg_rate)
-                    partners_count.append(range_stats[i]['total'])
+            # Розбиваємо на групи
+            start_idx = 0
+            for i in range(num_groups):
+                current_group_size = group_size + (1 if i < remainder else 0)
+                if current_group_size == 0:
+                    break
 
-            # Create bar chart
-            bars = plt.bar(x_labels, success_rates, color='#9C27B0', alpha=0.7)
+                end_idx = start_idx + current_group_size
+                group_points = success_data[start_idx:end_idx]
 
-            # Add value labels
-            for i, (bar, count) in enumerate(zip(bars, partners_count)):
-                height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2, height + 1,
-                         f'{count}',
-                         ha='center', va='bottom',
-                         rotation=0,
-                         fontsize=10,
-                         color='purple')
+                # Рахуємо статистику для групи
+                min_orders = group_points[0][0]
+                max_orders = group_points[-1][0]
+                avg_success_rate = sum(rate for _, rate in group_points) / len(group_points)
 
-            plt.title('Success Rate by Number of Orders per Partner\n(numbers show partners count in each range)',
-                      pad=20, fontsize=12)
+                # Форматуємо діапазон
+                if max_orders >= 100:
+                    range_str = f'{min_orders}-{max_orders}'
+                else:
+                    range_str = f'{min_orders}-{max_orders}'
+
+                # Додаємо дані до результату
+                result['ranges'].append(range_str)
+                result['rates'].append(avg_success_rate)
+                result['orders_count'].append(len(group_points))
+
+                start_idx = end_idx
+
+            # Створюємо точковий графік
+            x_points = []
+            y_points = []
+            counts = []
+            for i, (rate, count) in enumerate(zip(result['rates'], result['orders_count'])):
+                if count > 0:
+                    x_points.append(i)
+                    y_points.append(rate)
+                    counts.append(count)
+
+            # Створюємо градієнт кольорів від червоного до зеленого в залежності від success rate
+            colors = ['#ff4d4d' if rate < 50 else '#00cc00' for rate in y_points]
+            sizes = [max(80, min(150, count / 2)) for count in counts]  # Розмір точки залежить від кількості партнерів
+
+            # Малюємо точки
+            scatter = plt.scatter(x_points, y_points, s=sizes, alpha=0.6, c=colors)
+
+            # Розраховуємо середню кількість партнерів на точку
+            avg_partners = sum(counts) // len(counts) if counts else 0
+
+            plt.title(
+                f'Success Rate by Number of Orders per Partner\n(each point represents ~{avg_partners} partners, point size shows relative number in range)',
+                pad=20, fontsize=12)
             plt.xlabel('Number of Orders')
-            plt.ylabel('Average Success Rate (%)')
+            plt.ylabel('Success Rate (%)')
 
-            # Add grid
-            plt.grid(True, linestyle='--', alpha=0.7, zorder=0)
+            # Налаштовуємо осі
+            plt.ylim(-5, 105)
 
-            # Configure X axis labels
-            plt.xticks(rotation=45, ha='right')
+            # Показуємо всі мітки, якщо їх менше 10, інакше кожну другу
+            if len(result['ranges']) <= 10:
+                plt.xticks(range(len(result['ranges'])), result['ranges'],
+                           rotation=45, ha='right')
+            else:
+                plt.xticks(range(len(result['ranges']))[::2],
+                           [result['ranges'][i] for i in range(0, len(result['ranges']), 2)],
+                           rotation=45, ha='right')
 
-            # Set Y axis limits
-            plt.ylim(0, max(success_rates) * 1.15)
+            plt.grid(True, linestyle='--', alpha=0.7)
 
-            # Configure layout
-            plt.tight_layout()
+            # Додаємо горизонтальні лінії
+            plt.axhline(y=0, color='gray', linestyle='-', alpha=0.3)
+            plt.axhline(y=50, color='gray', linestyle='--', alpha=0.3)
+            plt.axhline(y=100, color='gray', linestyle='-', alpha=0.3)
 
-            # Save chart
+            # Додаємо легенду
+            legend_elements = [
+                plt.Line2D([0], [0], marker='o', color='w',
+                           markerfacecolor='#ff4d4d', markersize=10,
+                           label='Success Rate < 50%'),
+                plt.Line2D([0], [0], marker='o', color='w',
+                           markerfacecolor='#00cc00', markersize=10,
+                           label='Success Rate ≥ 50%')
+            ]
+            plt.legend(handles=legend_elements, loc='upper right')
+
+            # Зберігаємо графік
             buffer = BytesIO()
-            plt.savefig(buffer, format='png', bbox_inches='tight', dpi=100)
+            plt.savefig(buffer, format='png', bbox_inches='tight',
+                        dpi=100, pad_inches=0.2)
             plt.close()
 
             return base64.b64encode(buffer.getvalue())
@@ -1448,9 +1565,12 @@ class CustomerDataCollection(models.Model):
 
                 # Calculate success rates and averages
                 for partner_id, stats in partner_stats.items():
-                    stats['success_rate'] = (stats['successful_orders'] / stats['total_orders'] * 100) if stats['total_orders'] > 0 else 0
-                    stats['avg_amount'] = stats['total_amount'] / stats['total_orders'] if stats['total_orders'] > 0 else 0
-                    stats['avg_success_amount'] = stats['success_amount'] / stats['successful_orders'] if stats['successful_orders'] > 0 else 0
+                    stats['success_rate'] = (stats['successful_orders'] / stats['total_orders'] * 100) if stats[
+                                                                                                              'total_orders'] > 0 else 0
+                    stats['avg_amount'] = stats['total_amount'] / stats['total_orders'] if stats[
+                                                                                               'total_orders'] > 0 else 0
+                    stats['avg_success_amount'] = stats['success_amount'] / stats['successful_orders'] if stats[
+                                                                                                              'successful_orders'] > 0 else 0
 
                 # Create charts
                 record.total_amount_success_chart = record._create_amount_based_chart(
@@ -1508,7 +1628,7 @@ class CustomerDataCollection(models.Model):
                 return False
 
             # Визначаємо кількість груп (зменшуємо якщо партнерів мало)
-            num_groups = min(30, total_points // 50)  # Мінімум 50 партнерів на групу
+            num_groups = min(30, total_points // 20)  # Мінімум 20 партнерів на групу
             if num_groups < 5:  # Якщо груп менше 5, встановлюємо мінімум 5 груп
                 num_groups = 5
 
@@ -1541,9 +1661,9 @@ class CustomerDataCollection(models.Model):
 
                 # Форматуємо діапазон
                 if max_amount >= 1000000:
-                    range_str = f'{min_amount/1000000:.1f}M-{max_amount/1000000:.1f}M'
+                    range_str = f'{min_amount / 1000000:.1f}M-{max_amount / 1000000:.1f}M'
                 elif max_amount >= 1000:
-                    range_str = f'{min_amount/1000:.0f}K-{max_amount/1000:.0f}K'
+                    range_str = f'{min_amount / 1000:.0f}K-{max_amount / 1000:.0f}K'
                 else:
                     range_str = f'{min_amount:.0f}-{max_amount:.0f}'
 
@@ -1566,7 +1686,7 @@ class CustomerDataCollection(models.Model):
 
             # Створюємо градієнт кольорів від червоного до зеленого в залежності від success rate
             colors = ['#ff4d4d' if rate < 50 else '#00cc00' for rate in y_points]
-            sizes = [max(80, min(150, count/2)) for count in counts]  # Розмір точки залежить від кількості партнерів
+            sizes = [max(80, min(150, count / 2)) for count in counts]  # Розмір точки залежить від кількості партнерів
 
             # Малюємо точки
             scatter = plt.scatter(x_points, y_points, s=sizes, alpha=0.6, c=colors)
@@ -1574,8 +1694,9 @@ class CustomerDataCollection(models.Model):
             # Розраховуємо середню кількість партнерів на точку
             avg_partners = sum(counts) // len(counts) if counts else 0
 
-            plt.title(f'{title}\n(each point represents ~{avg_partners} partners, point size shows relative number in range)',
-                      pad=20, fontsize=12)
+            plt.title(
+                f'{title}\n(each point represents ~{avg_partners} partners, point size shows relative number in range)',
+                pad=20, fontsize=12)
             plt.xlabel(xlabel)
             plt.ylabel('Success Rate (%)')
 
@@ -1587,7 +1708,8 @@ class CustomerDataCollection(models.Model):
                 plt.xticks(range(len(result['ranges'])), result['ranges'],
                            rotation=45, ha='right')
             else:
-                plt.xticks(range(len(result['ranges']))[::2], [result['ranges'][i] for i in range(0, len(result['ranges']), 2)],
+                plt.xticks(range(len(result['ranges']))[::2],
+                           [result['ranges'][i] for i in range(0, len(result['ranges']), 2)],
                            rotation=45, ha='right')
 
             plt.grid(True, linestyle='--', alpha=0.7)
@@ -1623,8 +1745,1089 @@ class CustomerDataCollection(models.Model):
     def _format_amount(self, amount):
         """Format amount for display in chart labels"""
         if amount >= 1000000:
-            return f'{amount/1000000:.1f}M'
+            return f'{amount / 1000000:.1f}M'
         elif amount >= 1000:
-            return f'{amount/1000:.0f}K'
+            return f'{amount / 1000:.0f}K'
         else:
             return f'{amount:.0f}'
+
+    @api.depends('data_file')
+    def _compute_cumulative_success_rate_chart(self):
+        """Compute cumulative success rate chart over time"""
+        for record in self:
+            if not record.data_file:
+                record.cumulative_success_rate_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    continue
+
+                # Convert dates and sort by date
+                orders_data = []
+                for row in data:
+                    if isinstance(row['date_order'], str):
+                        order_date = datetime.strptime(row['date_order'], '%Y-%m-%d %H:%M:%S')
+                    else:
+                        order_date = row['date_order']
+                    orders_data.append({
+                        'date': order_date,
+                        'success': row['state'] == 'sale'
+                    })
+
+                # Sort orders by date
+                orders_data.sort(key=lambda x: x['date'])
+
+                if not orders_data:
+                    continue
+
+                # Generate monthly points from start to end
+                start_date = orders_data[0]['date'].replace(day=1, hour=0, minute=0, second=0)
+                end_date = orders_data[-1]['date'].replace(day=1, hour=0, minute=0, second=0)
+
+                current_date = start_date
+                points_data = []
+                cumulative_orders = 0
+                cumulative_success = 0
+
+                while current_date <= end_date:
+                    next_date = (current_date.replace(day=1) + relativedelta(months=1)).replace(day=1)
+
+                    # Count orders up to this date
+                    while orders_data and orders_data[0]['date'] < next_date:
+                        order = orders_data.pop(0)
+                        cumulative_orders += 1
+                        if order['success']:
+                            cumulative_success += 1
+
+                    if cumulative_orders > 0:
+                        success_rate = (cumulative_success / cumulative_orders) * 100
+                        points_data.append((current_date, success_rate, cumulative_orders))
+
+                    current_date = next_date
+
+                # Create the chart
+                plt.figure(figsize=(15, 8))
+
+                # Prepare data for plotting
+                dates = [point[0] for point in points_data]
+                rates = [point[1] for point in points_data]
+                orders = [point[2] for point in points_data]
+
+                # Convert dates to matplotlib format
+                dates_num = [plt.matplotlib.dates.date2num(date) for date in dates]
+
+                # Calculate point sizes based on number of orders
+                max_size = 150
+                min_size = 50
+                sizes = [min(max_size, max(min_size, orders_count / 10)) for orders_count in orders]
+
+                # Create scatter plot with connected lines
+                plt.plot(dates_num, rates, 'b-', alpha=0.3)  # Line connecting points
+                scatter = plt.scatter(dates_num, rates, s=sizes, alpha=0.6,
+                                      c=rates, cmap='RdYlGn',
+                                      norm=plt.Normalize(0, 100))
+
+                # Customize the chart
+                plt.title('Cumulative Success Rate Over Time\n(point size shows total orders up to that date)',
+                          pad=20, fontsize=12)
+                plt.xlabel('Date')
+                plt.ylabel('Cumulative Success Rate (%)')
+
+                # Format x-axis
+                plt.gca().xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%b %Y'))
+                plt.xticks(rotation=45, ha='right')
+
+                # Set y-axis limits
+                plt.ylim(-5, 105)
+
+                # Add grid
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Add horizontal lines
+                plt.axhline(y=0, color='gray', linestyle='-', alpha=0.3)
+                plt.axhline(y=50, color='gray', linestyle='--', alpha=0.3)
+                plt.axhline(y=100, color='gray', linestyle='-', alpha=0.3)
+
+                # Add colorbar
+                cbar = plt.colorbar(scatter)
+                cbar.set_label('Success Rate (%)')
+
+                # Add static annotations for all points
+                for i, (date, rate, order_count) in enumerate(points_data):
+                    # Add annotation every 6 months (every 6th point)
+                    if i % 6 == 0:
+                        plt.annotate(f'{rate:.1f}%\n{order_count} orders',
+                                     (dates_num[i], rate),
+                                     xytext=(0, 10), textcoords='offset points',
+                                     ha='center',
+                                     bbox=dict(boxstyle='round,pad=0.5', fc='white', alpha=0.8, ec='none'),
+                                     fontsize=8)
+
+                # Adjust layout to prevent overlapping
+                plt.tight_layout()
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.cumulative_success_rate_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing cumulative success rate chart: {str(e)}")
+                record.cumulative_success_rate_chart = False
+                plt.close('all')
+
+    def _compute_order_intensity_chart(self):
+        for record in self:
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    record.order_intensity_success_chart = False
+                    continue
+
+                # Calculate metrics for each partner
+                partner_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0
+                })
+
+                # Collect statistics for each partner
+                for row in data:
+                    partner_id = row['partner_id']
+                    order_date = row['date_order']
+
+                    stats = partner_stats[partner_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    if row['state'] == 'sale':
+                        stats['success'] += 1
+
+                # Calculate success rate and intensity for each partner
+                partner_metrics = []
+                for partner_id, stats in partner_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['total'] > 0:
+                        # Calculate months between first and last order
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Calculate order intensity (orders per month)
+                        intensity = stats['total'] / months_active
+
+                        # Calculate success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        partner_metrics.append({
+                            'intensity': intensity,
+                            'success_rate': success_rate
+                        })
+
+                if not partner_metrics:
+                    print("No data to plot")
+                    record.order_intensity_success_chart = False
+                    continue
+
+                # Find min and max success rates
+                min_rate = min(p['success_rate'] for p in partner_metrics)
+                max_rate = max(p['success_rate'] for p in partner_metrics)
+
+                # Create 20 equal ranges of success rate
+                num_groups = 20
+                rate_step = (max_rate - min_rate) / num_groups
+
+                # Initialize groups
+                grouped_metrics = []
+                for i in range(num_groups):
+                    rate_min = min_rate + i * rate_step
+                    rate_max = min_rate + (i + 1) * rate_step
+                    group = [p for p in partner_metrics
+                             if rate_min <= p['success_rate'] < rate_max]
+
+                    if group:  # Only add group if it has partners
+                        avg_intensity = sum(p['intensity'] for p in group) / len(group)
+                        avg_success_rate = sum(p['success_rate'] for p in group) / len(group)
+
+                        grouped_metrics.append({
+                            'intensity': avg_intensity,
+                            'success_rate': avg_success_rate,
+                            'partners_count': len(group)
+                        })
+
+                # Create the chart
+                plt.figure(figsize=(12, 8))
+
+                # Extract data for plotting
+                intensities = [d['intensity'] for d in grouped_metrics]
+                success_rates = [d['success_rate'] for d in grouped_metrics]
+                partners_counts = [d['partners_count'] for d in grouped_metrics]
+
+                # Create scatter plot
+                plt.scatter(intensities, success_rates,
+                            s=100,  # Fixed size for better readability
+                            alpha=0.6)
+
+                # Add trend line
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                # Add annotations for each point
+                for i, (x, y, count) in enumerate(zip(intensities, success_rates, partners_counts)):
+                    plt.annotate(
+                        f"{count} clients",
+                        (x, y),
+                        xytext=(5, 5), textcoords='offset points',
+                        bbox=dict(facecolor='white', edgecolor='none', alpha=0.7)
+                    )
+
+                plt.xlabel('Інтенсивність замовлень (замовлень на місяць)')
+                plt.ylabel('Середній відсоток успішних замовлень (%)')
+                plt.title('Залежність успішності від інтенсивності замовлень\n(кожна точка представляє групу клієнтів)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.order_intensity_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing order intensity chart: {str(e)}")
+                record.order_intensity_success_chart = False
+                plt.close('all')
+
+    def _compute_success_order_intensity_chart(self):
+        for record in self:
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    record.success_order_intensity_chart = False
+                    continue
+
+                # Calculate metrics for each partner
+                partner_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0
+                })
+
+                # Collect statistics for each partner
+                for row in data:
+                    partner_id = row['partner_id']
+                    order_date = row['date_order']
+
+                    stats = partner_stats[partner_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    if row['state'] == 'sale':
+                        stats['success'] += 1
+
+                # Calculate success rate and intensity for each partner
+                partner_metrics = []
+                for partner_id, stats in partner_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['success'] > 0:
+                        # Calculate months between first and last successful order
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Calculate success order intensity (successful orders per month)
+                        success_intensity = stats['success'] / months_active
+
+                        # Calculate success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        partner_metrics.append({
+                            'intensity': success_intensity,
+                            'success_rate': success_rate
+                        })
+
+                if not partner_metrics:
+                    print("No data to plot")
+                    record.success_order_intensity_chart = False
+                    continue
+
+                # Find min and max success rates
+                min_rate = min(p['success_rate'] for p in partner_metrics)
+                max_rate = max(p['success_rate'] for p in partner_metrics)
+
+                # Create 20 equal ranges of success rate
+                num_groups = 20
+                rate_step = (max_rate - min_rate) / num_groups
+
+                # Initialize groups
+                grouped_metrics = []
+                for i in range(num_groups):
+                    rate_min = min_rate + i * rate_step
+                    rate_max = min_rate + (i + 1) * rate_step
+                    group = [p for p in partner_metrics
+                             if rate_min <= p['success_rate'] < rate_max]
+
+                    if group:  # Only add group if it has partners
+                        avg_intensity = sum(p['intensity'] for p in group) / len(group)
+                        avg_success_rate = sum(p['success_rate'] for p in group) / len(group)
+
+                        grouped_metrics.append({
+                            'intensity': avg_intensity,
+                            'success_rate': avg_success_rate,
+                            'partners_count': len(group)
+                        })
+
+                # Create the chart
+                plt.figure(figsize=(12, 8))
+
+                # Extract data for plotting
+                intensities = [d['intensity'] for d in grouped_metrics]
+                success_rates = [d['success_rate'] for d in grouped_metrics]
+                partners_counts = [d['partners_count'] for d in grouped_metrics]
+
+                # Create scatter plot
+                plt.scatter(intensities, success_rates,
+                            s=100,  # Fixed size for better readability
+                            alpha=0.6)
+
+                # Add trend line
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                # Add annotations for each point
+                for i, (x, y, count) in enumerate(zip(intensities, success_rates, partners_counts)):
+                    plt.annotate(
+                        f"{count} clients",
+                        (x, y),
+                        xytext=(5, 5), textcoords='offset points',
+                        bbox=dict(facecolor='white', edgecolor='none', alpha=0.7)
+                    )
+
+                plt.xlabel('Інтенсивність успішних замовлень (успішних замовлень на місяць)')
+                plt.ylabel('Середній відсоток успішних замовлень (%)')
+                plt.title(
+                    'Залежність успішності від інтенсивності успішних замовлень\n(кожна точка представляє групу клієнтів)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.success_order_intensity_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing success order intensity chart: {str(e)}")
+                record.success_order_intensity_chart = False
+                plt.close('all')
+
+    def _compute_amount_intensity_chart(self):
+        for record in self:
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    record.amount_intensity_success_chart = False
+                    continue
+
+                # Calculate metrics for each partner
+                partner_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0,
+                    'total_amount': 0
+                })
+
+                # Collect statistics for each partner
+                for row in data:
+                    partner_id = row['partner_id']
+                    order_date = row['date_order']
+                    amount = float(row['amount_total'])
+
+                    stats = partner_stats[partner_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    stats['total_amount'] += amount
+                    if row['state'] == 'sale':
+                        stats['success'] += 1
+
+                # Calculate success rate and intensity for each partner
+                partner_metrics = []
+                for partner_id, stats in partner_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['total'] > 0:
+                        # Calculate months between first and last order
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Calculate order intensity (orders per month)
+                        intensity = stats['total'] / months_active
+
+                        # Calculate amount intensity (amount per month)
+                        amount_intensity = stats['total_amount'] / months_active
+
+                        # Calculate success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        partner_metrics.append({
+                            'intensity': amount_intensity,
+                            'success_rate': success_rate
+                        })
+
+                if not partner_metrics:
+                    print("No data to plot")
+                    record.amount_intensity_success_chart = False
+                    continue
+
+                # Find min and max success rates
+                min_rate = min(p['success_rate'] for p in partner_metrics)
+                max_rate = max(p['success_rate'] for p in partner_metrics)
+
+                # Create 20 equal ranges of success rate
+                num_groups = 20
+                rate_step = (max_rate - min_rate) / num_groups
+
+                # Initialize groups
+                grouped_metrics = []
+                for i in range(num_groups):
+                    rate_min = min_rate + i * rate_step
+                    rate_max = min_rate + (i + 1) * rate_step
+                    group = [p for p in partner_metrics
+                             if rate_min <= p['success_rate'] < rate_max]
+
+                    if group:  # Only add group if it has partners
+                        avg_intensity = sum(p['intensity'] for p in group) / len(group)
+                        avg_success_rate = sum(p['success_rate'] for p in group) / len(group)
+
+                        grouped_metrics.append({
+                            'intensity': avg_intensity,
+                            'success_rate': avg_success_rate,
+                            'partners_count': len(group)
+                        })
+
+                # Create the chart
+                plt.figure(figsize=(12, 8))
+
+                # Extract data for plotting
+                intensities = [d['intensity'] for d in grouped_metrics]
+                success_rates = [d['success_rate'] for d in grouped_metrics]
+                partners_counts = [d['partners_count'] for d in grouped_metrics]
+
+                # Create scatter plot
+                plt.scatter(intensities, success_rates,
+                            s=100,  # Fixed size for better readability
+                            alpha=0.6)
+
+                # Add trend line
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                # Add annotations for each point
+                for i, (x, y, count) in enumerate(zip(intensities, success_rates, partners_counts)):
+                    plt.annotate(
+                        f"{count} clients",
+                        (x, y),
+                        xytext=(5, 5), textcoords='offset points',
+                        bbox=dict(facecolor='white', edgecolor='none', alpha=0.7)
+                    )
+
+                plt.xlabel('Інтенсивність замовлень за сумою (сума замовлень на місяць)')
+                plt.ylabel('Середній відсоток успішних замовлень (%)')
+                plt.title(
+                    'Залежність успішності від інтенсивності замовлень за сумою\n(кожна точка представляє групу клієнтів)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.amount_intensity_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing amount intensity chart: {str(e)}")
+                record.amount_intensity_success_chart = False
+                plt.close('all')
+
+    def _compute_success_amount_intensity_chart(self):
+        for record in self:
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    record.success_amount_intensity_chart = False
+                    continue
+
+                # Calculate metrics for each partner
+                partner_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0,
+                    'success_amount': 0
+                })
+
+                # Collect statistics for each partner
+                for row in data:
+                    partner_id = row['partner_id']
+                    order_date = row['date_order']
+                    amount = float(row['amount_total'])
+
+                    stats = partner_stats[partner_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    if row['state'] == 'sale':
+                        stats['success'] += 1
+                        stats['success_amount'] += amount
+
+                # Calculate success rate and intensity for each partner
+                partner_metrics = []
+                for partner_id, stats in partner_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['success'] > 0:
+                        # Calculate months between first and last successful order
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Calculate success order intensity (successful orders per month)
+                        success_intensity = stats['success'] / months_active
+
+                        # Calculate success amount intensity (successful amount per month)
+                        success_amount_intensity = stats['success_amount'] / months_active
+
+                        # Calculate success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        partner_metrics.append({
+                            'intensity': success_amount_intensity,
+                            'success_rate': success_rate
+                        })
+
+                if not partner_metrics:
+                    print("No data to plot")
+                    record.success_amount_intensity_chart = False
+                    continue
+
+                # Find min and max success rates
+                min_rate = min(p['success_rate'] for p in partner_metrics)
+                max_rate = max(p['success_rate'] for p in partner_metrics)
+
+                # Create 20 equal ranges of success rate
+                num_groups = 20
+                rate_step = (max_rate - min_rate) / num_groups
+
+                # Initialize groups
+                grouped_metrics = []
+                for i in range(num_groups):
+                    rate_min = min_rate + i * rate_step
+                    rate_max = min_rate + (i + 1) * rate_step
+                    group = [p for p in partner_metrics
+                             if rate_min <= p['success_rate'] < rate_max]
+
+                    if group:  # Only add group if it has partners
+                        avg_intensity = sum(p['intensity'] for p in group) / len(group)
+                        avg_success_rate = sum(p['success_rate'] for p in group) / len(group)
+
+                        grouped_metrics.append({
+                            'intensity': avg_intensity,
+                            'success_rate': avg_success_rate,
+                            'partners_count': len(group)
+                        })
+
+                # Create the chart
+                plt.figure(figsize=(12, 8))
+
+                # Extract data for plotting
+                intensities = [d['intensity'] for d in grouped_metrics]
+                success_rates = [d['success_rate'] for d in grouped_metrics]
+                partners_counts = [d['partners_count'] for d in grouped_metrics]
+
+                # Create scatter plot
+                plt.scatter(intensities, success_rates,
+                            s=100,  # Fixed size for better readability
+                            alpha=0.6)
+
+                # Add trend line
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                # Add annotations for each point
+                for i, (x, y, count) in enumerate(zip(intensities, success_rates, partners_counts)):
+                    plt.annotate(
+                        f"{count} clients",
+                        (x, y),
+                        xytext=(5, 5), textcoords='offset points',
+                        bbox=dict(facecolor='white', edgecolor='none', alpha=0.7)
+                    )
+
+                plt.xlabel('Інтенсивність успішних замовлень за сумою (сума успішних замовлень на місяць)')
+                plt.ylabel('Середній відсоток успішних замовлень (%)')
+                plt.title(
+                    'Залежність успішності від інтенсивності успішних замовлень за сумою\n(кожна точка представляє групу клієнтів)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.success_amount_intensity_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing success amount intensity chart: {str(e)}")
+                record.success_amount_intensity_chart = False
+                plt.close('all')
+
+    def _compute_monthly_success_rate_chart(self):
+        """Compute chart showing success rate for each month"""
+        for record in self:
+            if not record.data_file:
+                record.monthly_success_rate_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    continue
+
+                # Group orders by month
+                monthly_stats = defaultdict(lambda: {'total': 0, 'success': 0})
+
+                # Collect statistics for each month
+                for row in data:
+                    order_date = row['date_order']
+                    month_key = order_date.strftime('%Y-%m')
+
+                    monthly_stats[month_key]['total'] += 1
+                    if row['state'] == 'sale':
+                        monthly_stats[month_key]['success'] += 1
+
+                if not monthly_stats:
+                    print("No data to plot")
+                    record.monthly_success_rate_chart = False
+                    continue
+
+                # Calculate success rate for each month
+                months = sorted(monthly_stats.keys())
+                success_rates = []
+                total_orders = []
+
+                for month in months:
+                    stats = monthly_stats[month]
+                    success_rate = (stats['success'] / stats['total'] * 100) if stats['total'] > 0 else 0
+                    success_rates.append(success_rate)
+                    total_orders.append(stats['total'])
+
+                # Create the chart
+                plt.figure(figsize=(15, 8))
+
+                # Create scatter plot for success rates
+                ax1 = plt.gca()
+                scatter = ax1.scatter(months, success_rates, color='tab:blue', s=100, alpha=0.6)
+                ax1.plot(months, success_rates, color='tab:blue', alpha=0.3)  # Add connecting line
+                ax1.set_xlabel('Місяць')
+                ax1.set_ylabel('Відсоток успішних замовлень (%)', color='tab:blue')
+                ax1.tick_params(axis='y', labelcolor='tab:blue')
+
+                # Show only every 6th month label
+                n_months = len(months)
+                plt.xticks(range(0, n_months, 6), [months[i] for i in range(0, n_months, 6)], rotation=45, ha='right')
+
+                # Create second y-axis for total orders
+                ax2 = ax1.twinx()
+                line = ax2.plot(months, total_orders, color='tab:orange', linewidth=2, label='Кількість замовлень')
+                ax2.set_ylabel('Загальна кількість замовлень', color='tab:orange')
+                ax2.tick_params(axis='y', labelcolor='tab:orange')
+
+                # Add value labels for each point
+                for i, (x, y, orders) in enumerate(zip(months, success_rates, total_orders)):
+                    ax1.annotate(
+                        f"{y:.1f}%",
+                        (x, y),
+                        xytext=(0, 10),
+                        textcoords='offset points',
+                        ha='center',
+                        va='bottom'
+                    )
+
+                plt.title('Щомісячний відсоток успішних замовлень')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Adjust layout to prevent label cutoff
+                plt.tight_layout()
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.monthly_success_rate_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing monthly success rate chart: {str(e)}")
+                record.monthly_success_rate_chart = False
+                plt.close('all')
+
+    def _compute_monthly_volume_success_chart(self):
+        """Compute chart showing success rate by monthly order volume"""
+        for record in self:
+            if not record.data_file:
+                record.monthly_volume_success_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    continue
+
+                # Group orders by month
+                monthly_stats = defaultdict(lambda: {'total': 0, 'success': 0})
+
+                # Collect statistics for each month
+                for row in data:
+                    order_date = row['date_order']
+                    month_key = order_date.strftime('%Y-%m')
+
+                    monthly_stats[month_key]['total'] += 1
+                    if row['state'] == 'sale':
+                        monthly_stats[month_key]['success'] += 1
+
+                if not monthly_stats:
+                    print("No data to plot")
+                    record.monthly_volume_success_chart = False
+                    continue
+
+                # Calculate success rate for each month and prepare data for plotting
+                plot_data = []
+                for month, stats in monthly_stats.items():
+                    if stats['total'] > 0:
+                        success_rate = (stats['success'] / stats['total'] * 100)
+                        plot_data.append({
+                            'month': month,
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                # Sort by total orders
+                plot_data.sort(key=lambda x: x['total_orders'])
+
+                # Group months into 20 equal groups by success rate
+                num_months = len(plot_data)
+                months_per_group = max(1, num_months // 20)
+                remainder = num_months % 20
+
+                grouped_data = []
+                start_idx = 0
+
+                for i in range(20):
+                    # Add one extra month to first 'remainder' groups
+                    current_group_size = months_per_group + (1 if i < remainder else 0)
+                    if current_group_size == 0:
+                        break
+
+                    end_idx = start_idx + current_group_size
+                    group = plot_data[start_idx:end_idx]
+
+                    if group:
+                        avg_success_rate = sum(m['success_rate'] for m in group) / len(group)
+                        avg_orders = sum(m['total_orders'] for m in group) / len(group)
+                        months_in_group = [m['month'] for m in group]
+
+                        grouped_data.append({
+                            'success_rate': avg_success_rate,
+                            'avg_orders': avg_orders,
+                            'months': months_in_group,
+                            'months_count': len(group)
+                        })
+
+                    start_idx = end_idx
+
+                # Create the chart
+                plt.figure(figsize=(12, 8))
+
+                # Extract data for plotting
+                success_rates = [d['success_rate'] for d in grouped_data]
+                avg_orders = [d['avg_orders'] for d in grouped_data]
+                months_counts = [d['months_count'] for d in grouped_data]
+
+                # Create scatter plot
+                plt.scatter(avg_orders, success_rates, s=100, alpha=0.6)
+                print(f"_compute_monthly_volume_success_chart avg_orders = {avg_orders}")
+                print(f"_compute_monthly_volume_success_chart success_rates = {success_rates}")
+
+                # Add trend line
+                z = np.polyfit(avg_orders, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(avg_orders, p(avg_orders), "r--", alpha=0.8)
+
+                # Calculate average months per point
+                avg_months_per_point = sum(months_counts) / len(months_counts)
+
+                plt.xlabel('Середня кількість замовлень за місяць')
+                plt.ylabel('Середній відсоток успішних замовлень (%)')
+                plt.title(f'Залежність успішності від середньомісячної кількості замовлень\n'
+                          f'(в середньому {avg_months_per_point:.1f} місяців на точку, '
+                          f'всього {sum(months_counts)} місяців)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.monthly_volume_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing monthly volume success chart: {str(e)}")
+                record.monthly_volume_success_chart = False
+                plt.close('all')
+
+    def _compute_monthly_orders_success_chart(self):
+        """Compute chart showing success rate by monthly orders count"""
+        for record in self:
+            if not record.data_file:
+                record.monthly_orders_success_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    continue
+
+                # Group orders by month
+                monthly_stats = defaultdict(lambda: {'total': 0, 'success': 0})
+
+                # Collect statistics for each month
+                for row in data:
+                    order_date = row['date_order']
+                    month_key = order_date.strftime('%Y-%m')
+
+                    monthly_stats[month_key]['total'] += 1
+                    if row['state'] == 'sale':
+                        monthly_stats[month_key]['success'] += 1
+
+                if not monthly_stats:
+                    print("No data to plot")
+                    record.monthly_orders_success_chart = False
+                    continue
+
+                # Calculate success rate for each month and prepare data for plotting
+                plot_data = []
+                for month, stats in monthly_stats.items():
+                    if stats['total'] > 0:
+                        success_rate = (stats['success'] / stats['total'] * 100)
+                        plot_data.append({
+                            'month': month,
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                # Sort by total orders
+                plot_data.sort(key=lambda x: x['total_orders'])
+
+                # Find min and max order counts
+                min_orders = min(m['total_orders'] for m in plot_data)
+                max_orders = max(m['total_orders'] for m in plot_data)
+
+                # Create 20 equal ranges of order counts
+                range_size = (max_orders - min_orders) / 20
+
+                # Initialize groups
+                groups = [[] for _ in range(20)]
+
+                # Distribute months into groups based on order count ranges
+                for month_data in plot_data:
+                    if range_size > 0:
+                        # Визначаємо індекс групи на основі кількості замовлень
+                        group_index = min(19, int((month_data['total_orders'] - min_orders) / range_size))
+                    else:
+                        group_index = 0
+                    groups[group_index].append(month_data)
+
+                # Calculate statistics for each group
+                grouped_data = []
+                for i, group in enumerate(groups):
+                    if group:  # Only process non-empty groups
+                        avg_success_rate = sum(m['success_rate'] for m in group) / len(group)
+                        avg_orders = sum(m['total_orders'] for m in group) / len(group)
+
+                        grouped_data.append({
+                            'success_rate': avg_success_rate,
+                            'avg_orders': avg_orders,
+                            'months_count': len(group),
+                            'min_orders': min(m['total_orders'] for m in group),
+                            'max_orders': max(m['total_orders'] for m in group)
+                        })
+
+                # Sort by average orders for plotting
+                grouped_data.sort(key=lambda x: x['avg_orders'])
+
+                print("\n_compute_monthly_orders_success_chart ranges:")
+                for i, group in enumerate(grouped_data):
+                    print(
+                        f"Group {i}: {group['min_orders']}-{group['max_orders']} orders, {group['months_count']} months")
+
+                # Create the chart
+                plt.figure(figsize=(12, 8))
+
+                # Extract data for plotting
+                success_rates = [d['success_rate'] for d in grouped_data]
+                avg_orders = [d['avg_orders'] for d in grouped_data]
+                months_counts = [d['months_count'] for d in grouped_data]
+
+                # Create scatter plot
+                plt.scatter(avg_orders, success_rates, s=100, alpha=0.6)
+                print(f"_compute_monthly_orders_success_chart avg_orders = {avg_orders}")
+                print(f"_compute_monthly_orders_success_chart success_rates = {success_rates}")
+
+                # Add trend line
+                z = np.polyfit(avg_orders, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(avg_orders, p(avg_orders), "r--", alpha=0.8)
+
+                # Calculate average months per point
+                avg_months_per_point = sum(months_counts) / len(months_counts)
+
+                plt.xlabel('Середня кількість замовлень за місяць')
+                plt.ylabel('Середній відсоток успішних замовлень (%)')
+                plt.title(f'Залежність успішності від кількості замовлень\n'
+                          f'(діапазон замовлень: {min_orders:.0f}-{max_orders:.0f}, '
+                          f'всього {sum(months_counts)} місяців)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.monthly_orders_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing monthly orders success chart: {str(e)}")
+                record.monthly_orders_success_chart = False
+                plt.close('all')
+
+    def _compute_payment_term_success_chart(self):
+        """Compute chart showing success rate by payment terms"""
+        for record in self:
+            if not record.data_file:
+                record.payment_term_success_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                data = record._read_csv_data()
+                if not data:
+                    continue
+
+                # Get payment terms names
+                payment_terms = {
+                    str(pt.id): pt.name
+                    for pt in self.env['account.payment.term'].search([])
+                }
+                payment_terms['Not specified'] = 'Не вказано'
+                payment_terms['False'] = 'Не вказано'
+
+                # Group orders by payment term
+                payment_term_stats = defaultdict(lambda: {'total': 0, 'success': 0, 'name': 'Не вказано'})
+
+                # Collect statistics for each payment term
+                for row in data:
+                    payment_term_id = row.get('payment_term_id')
+                    if not payment_term_id or payment_term_id == 'False':
+                        payment_term_id = 'Not specified'
+
+                    payment_term_stats[payment_term_id]['total'] += 1
+                    payment_term_stats[payment_term_id]['name'] = payment_terms.get(str(payment_term_id), 'Не вказано')
+                    if row['state'] == 'sale':
+                        payment_term_stats[payment_term_id]['success'] += 1
+
+                if not payment_term_stats:
+                    print("No data to plot")
+                    record.payment_term_success_chart = False
+                    continue
+
+                # Calculate success rate for each payment term
+                plot_data = []
+                for term_id, stats in payment_term_stats.items():
+                    if stats['total'] > 0:
+                        success_rate = (stats['success'] / stats['total'] * 100)
+                        plot_data.append({
+                            'term_id': term_id,
+                            'name': stats['name'],
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                # Sort by success rate
+                plot_data.sort(key=lambda x: x['success_rate'])
+
+                # Create the chart
+                plt.figure(figsize=(15, 10))
+
+                # Extract data for plotting
+                term_names = [f"{d['name']}\n(ID: {d['term_id']})" for d in plot_data]
+                success_rates = [d['success_rate'] for d in plot_data]
+                total_orders = [d['total_orders'] for d in plot_data]
+
+                # Create bar chart with custom colors based on success rate
+                colors = ['#ff4d4d' if rate < 50 else '#00cc00' for rate in success_rates]
+                bars = plt.bar(term_names, success_rates, color=colors, alpha=0.6)
+
+                # Add value labels
+                for i, (bar, orders) in enumerate(zip(bars, total_orders)):
+                    height = bar.get_height()
+                    plt.text(bar.get_x() + bar.get_width()/2, height,
+                             f'{orders}',
+                             ha='center', va='bottom')
+
+                plt.xlabel('Умови оплати')
+                plt.ylabel('Відсоток успішних замовлень (%)')
+                plt.title('Залежність успішності від умов оплати\n(числа показують кількість замовлень)')
+                plt.grid(True, linestyle='--', alpha=0.7)
+                plt.xticks(rotation=90, ha='right')
+
+                # Adjust layout to prevent label cutoff
+                plt.tight_layout()
+
+                # Save the chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight',
+                            dpi=100, pad_inches=0.2)
+                plt.close()
+
+                record.payment_term_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing payment term success chart: {str(e)}")
+                record.payment_term_success_chart = False
+                plt.close('all')
