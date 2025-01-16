@@ -48,6 +48,32 @@ class PartnerDataAnalysis(models.Model):
         attachment=True
     )
 
+    # Monthly Analysis Charts
+    monthly_orders_chart = fields.Binary(
+        string='Monthly Orders Analysis',
+        compute='_compute_monthly_charts',
+        store=True,
+        attachment=True
+    )
+    monthly_success_rate_chart = fields.Binary(
+        string='Monthly Success Rate',
+        compute='_compute_monthly_charts',
+        store=True,
+        attachment=True
+    )
+    cumulative_success_rate_chart = fields.Binary(
+        string='Cumulative Success Rate',
+        compute='_compute_monthly_charts',
+        store=True,
+        attachment=True
+    )
+    cumulative_orders_chart = fields.Binary(
+        string='Cumulative Orders Count',
+        compute='_compute_monthly_charts',
+        store=True,
+        attachment=True
+    )
+
     @api.depends('partner_id')
     def _compute_name(self):
         for record in self:
@@ -180,6 +206,8 @@ class PartnerDataAnalysis(models.Model):
             self.success_amount_chart = self._create_success_amount_chart(
                 self._prepare_success_amount_data()
             )
+
+            self._compute_monthly_charts()
 
             return True
 
@@ -381,3 +409,130 @@ class PartnerDataAnalysis(models.Model):
         except Exception as e:
             _logger.error(f"Error creating success-amount chart: {str(e)}")
             return False
+
+    @api.depends('data_file')
+    def _compute_monthly_charts(self):
+        """Compute monthly analysis charts"""
+        for record in self:
+            if not record.data_file:
+                continue
+
+            try:
+                # Read CSV data
+                csv_data = StringIO(base64.b64decode(record.data_file).decode('utf-8'))
+                reader = csv.DictReader(csv_data)
+                orders = list(reader)
+
+                if not orders:
+                    continue
+
+                # Process orders by month
+                monthly_data = {}
+                for order in orders:
+                    date = datetime.strptime(order['date_order'], '%Y-%m-%d %H:%M:%S')
+                    month_key = date.strftime('%Y-%m')
+
+                    if month_key not in monthly_data:
+                        monthly_data[month_key] = {
+                            'total': 0,
+                            'successful': 0
+                        }
+
+                    monthly_data[month_key]['total'] += 1
+                    if order['state'] in ['sale', 'done']:
+                        monthly_data[month_key]['successful'] += 1
+
+                # Sort months
+                months = sorted(monthly_data.keys())
+
+                # Prepare data for plotting
+                total_orders = [monthly_data[m]['total'] for m in months]
+                successful_orders = [monthly_data[m]['successful'] for m in months]
+                success_rates = [
+                    (monthly_data[m]['successful'] / monthly_data[m]['total'] * 100)
+                    for m in months
+                ]
+
+                # Calculate cumulative success rate and total orders
+                cumulative_total = 0
+                cumulative_successful = 0
+                cumulative_orders = []
+                cumulative_successful_orders = []
+                cumulative_rates = []
+                for m in months:
+                    cumulative_total += monthly_data[m]['total']
+                    cumulative_successful += monthly_data[m]['successful']
+                    cumulative_rates.append(
+                        (cumulative_successful / cumulative_total * 100)
+                    )
+                    cumulative_orders.append(cumulative_total)
+                    cumulative_successful_orders.append(cumulative_successful)
+
+                # Create monthly orders chart
+                plt.figure(figsize=(12, 6))
+                plt.scatter(months, total_orders, color='skyblue', label='Total Orders', s=50)
+                plt.scatter(months, successful_orders, color='gold', label='Successful Orders', s=50)
+                plt.xticks(rotation=45)
+                plt.xlabel('Month')
+                plt.ylabel('Number of Orders')
+                plt.title('Monthly Orders Analysis')
+                plt.legend()
+                plt.grid(True)
+                plt.tight_layout()
+
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png')
+                plt.close()
+                record.monthly_orders_chart = base64.b64encode(buffer.getvalue())
+
+                # Create monthly success rate chart
+                plt.figure(figsize=(12, 6))
+                plt.plot(months, success_rates, marker='o', color='green')
+                plt.xticks(rotation=45)
+                plt.xlabel('Month')
+                plt.ylabel('Success Rate (%)')
+                plt.title('Monthly Success Rate')
+                plt.grid(True)
+                plt.tight_layout()
+
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png')
+                plt.close()
+                record.monthly_success_rate_chart = base64.b64encode(buffer.getvalue())
+
+                # Create cumulative success rate chart
+                plt.figure(figsize=(12, 6))
+                plt.plot(months, cumulative_rates, marker='o', color='purple')
+                plt.xticks(rotation=45)
+                plt.xlabel('Month')
+                plt.ylabel('Cumulative Success Rate (%)')
+                plt.title('Cumulative Success Rate Over Time')
+                plt.grid(True)
+                plt.tight_layout()
+
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png')
+                plt.close()
+                record.cumulative_success_rate_chart = base64.b64encode(buffer.getvalue())
+
+                # Create cumulative orders chart
+                plt.figure(figsize=(12, 6))
+                plt.plot(months, cumulative_orders, marker='o', color='blue', linewidth=2, label='Total Orders')
+                plt.plot(months, cumulative_successful_orders, marker='o', color='gold', linewidth=2,
+                         label='Successful Orders')
+                plt.xticks(rotation=45)
+                plt.xlabel('Month')
+                plt.ylabel('Number of Orders')
+                plt.title('Cumulative Orders Over Time')
+                plt.legend()
+                plt.grid(True)
+                plt.tight_layout()
+
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png')
+                plt.close()
+                record.cumulative_orders_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                _logger.error('Error computing monthly charts: %s', str(e))
+                continue

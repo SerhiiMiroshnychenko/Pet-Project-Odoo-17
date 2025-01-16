@@ -77,7 +77,11 @@
                         <!-- Monthly Analysis -->
                         <page string="Monthly Analysis" name="monthly_analysis">
                             <field name="monthly_analysis_chart" widget="image"
-                                   options="{'preview_image': 'monthly_analysis_chart', 'size': [1000, 600]}"/>
+                                   options="{'preview_image': 'monthly_analysis_chart', 'size': [1000, 700]}"/>
+                            <field name="monthly_analysis_scatter_chart" widget="image"
+                                   options="{'preview_image': 'monthly_analysis_scatter_chart', 'size': [1000, 700]}"/>
+                            <field name="cumulative_monthly_analysis_chart" widget="image"
+                                   options="{'preview_image': 'cumulative_monthly_analysis_chart', 'size': [1000, 700]}"/>
                         </page>
                         <!-- Distribution Charts -->
                         <page string="Distribution Analysis" name="distribution_analysis">
@@ -144,8 +148,57 @@
                             <field name="monthly_orders_success_chart" widget="image"
                                    options="{'preview_image': 'monthly_orders_success_chart', 'size': [1000, 600]}"
                                    nolabel="1"/>
-                             <field name="payment_term_success_chart" widget="image"
+                            <field name="payment_term_success_chart" widget="image"
                                    options="{'preview_image': 'payment_term_success_chart', 'size': [1000, 1000]}"
+                                   nolabel="1"/>
+                        </page>
+                        <page string="Combined Analysis" name="combined_analysis">
+                            <button name="action_compute_and_draw"
+                                    string="Compute and Draw"
+                                    type="object"
+                                    class="oe_highlight"/>
+                            <field name="monthly_combined_chart" widget="image"
+                                   options="{'preview_image': 'monthly_combined_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="relative_age_success_chart" widget="image"
+                                   options="{'preview_image': 'relative_age_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                        </page>
+                        <!-- Salesperson Analysis -->
+                        <page string="Salesperson Analysis" name="salesperson_analysis">
+                            <button name="action_compute_salesperson_charts"
+                                    string="Compute and Draw"
+                                    type="object"
+                                    class="oe_highlight"/>
+                            <field name="salesperson_age_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_age_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_orders_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_total_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_total_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_avg_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_avg_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_avg_success_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_avg_success_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_order_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_order_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_order_intensity_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_order_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_amount_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_amount_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_amount_intensity_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_amount_intensity_chart', 'size': [1000, 600]}"
                                    nolabel="1"/>
                         </page>
                     </notebook>

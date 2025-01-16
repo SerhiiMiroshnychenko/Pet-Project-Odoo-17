@@ -65,6 +65,20 @@
                                        options="{'preview_image': 'success_amount_chart', 'size': [600, 400]}" nolabel="1"
                                        attrs="{'invisible': [('success_amount_chart', '=', False)]}"/>
                         </page>
+                        <page string="Monthly Analysis" name="monthly_analysis">
+<!--                                <field name="monthly_orders_chart" widget="image"-->
+<!--                                       options="{'preview_image': 'monthly_orders_chart', 'size': [1000, 600]}"-->
+<!--                                       nolabel="1"/>-->
+<!--                                <field name="monthly_success_rate_chart" widget="image"-->
+<!--                                       options="{'preview_image': 'monthly_success_rate_chart', 'size': [1000, 600]}"-->
+<!--                                       nolabel="1"/>-->
+                                <field name="cumulative_success_rate_chart" widget="image"
+                                       options="{'preview_image': 'cumulative_success_rate_chart', 'size': [1000, 600]}"
+                                       nolabel="1"/>
+                                <field name="cumulative_orders_chart" widget="image"
+                                       options="{'preview_image': 'cumulative_orders_chart', 'size': [1000, 600]}"
+                                       nolabel="1"/>
+                        </page>
                     </notebook>
                 </sheet>
             </form>

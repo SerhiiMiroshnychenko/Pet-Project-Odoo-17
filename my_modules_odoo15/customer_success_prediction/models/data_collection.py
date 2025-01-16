@@ -139,6 +139,94 @@ class CustomerDataCollection(models.Model):
         store=True
     )
 
+    cumulative_monthly_analysis_chart = fields.Binary(
+        string='Cumulative Monthly Analysis',
+        compute='_compute_cumulative_monthly_charts',
+        store=True
+    )
+
+    monthly_analysis_scatter_chart = fields.Binary(
+        string='Monthly Analysis (Scatter)',
+        compute='_compute_monthly_scatter_charts',
+        store=True
+    )
+
+    monthly_combined_chart = fields.Binary(
+        string='Monthly Combined Analysis',
+        compute='_compute_monthly_combined_chart',
+        store=True
+    )
+
+    relative_age_success_chart = fields.Binary(
+        string='Success Rate by Relative Customer Age',
+        compute='_compute_relative_age_success_chart',
+        store=True
+    )
+
+    # SALESPERSON ANALYSIS
+
+    salesperson_age_success_chart = fields.Binary(
+        string='Success Rate by Salesperson Age',
+        compute='_compute_salesperson_age_success_chart',
+        store=True
+    )
+
+    salesperson_orders_success_chart = fields.Binary(
+        string='Success Rate by Salesperson Orders Count',
+        compute='_compute_salesperson_orders_success_chart',
+        store=True
+    )
+
+    salesperson_total_amount_success_chart = fields.Binary(
+        string='Success Rate by Salesperson Total Amount',
+        compute='_compute_salesperson_total_amount_success_chart',
+        store=True
+    )
+
+    salesperson_success_amount_success_chart = fields.Binary(
+        string='Success Rate by Salesperson Successful Orders Amount',
+        compute='_compute_salesperson_success_amount_success_chart',
+        store=True
+    )
+
+    salesperson_avg_amount_success_chart = fields.Binary(
+        string='Success Rate by Average Order Amount per Salesperson',
+        compute='_compute_salesperson_avg_amount_success_chart',
+        store=True
+    )
+
+    salesperson_avg_success_amount_success_chart = fields.Binary(
+        string='Success Rate by Average Successful Order Amount per Salesperson',
+        compute='_compute_salesperson_avg_success_amount_success_chart',
+        store=True
+    )
+
+    salesperson_order_intensity_success_chart = fields.Binary(
+        string='Success Rate by Total Order Intensity per Salesperson',
+        compute='_compute_salesperson_order_intensity_chart',
+        store=True
+    )
+
+    salesperson_success_order_intensity_chart = fields.Binary(
+        string='Success Rate by Successful Order Intensity per Salesperson',
+        compute='_compute_salesperson_success_order_intensity_chart',
+        store=True
+    )
+
+    salesperson_amount_intensity_success_chart = fields.Binary(
+        string='Success Rate by Total Amount Intensity per Salesperson',
+        compute='_compute_salesperson_amount_intensity_chart',
+        store=True
+    )
+
+    salesperson_success_amount_intensity_chart = fields.Binary(
+        string='Success Rate by Successful Amount Intensity per Salesperson',
+        compute='_compute_salesperson_success_amount_intensity_chart',
+        store=True
+    )
+
+
+
     def action_collect_data(self):
         """Collect data from database and save to CSV"""
         self.ensure_one()
@@ -777,6 +865,8 @@ class CustomerDataCollection(models.Model):
     def _compute_charts(self):
         self._compute_distribution_charts()
         self._compute_monthly_charts()
+        self._compute_cumulative_monthly_charts()
+        self._compute_monthly_scatter_charts()
 
     def _compute_distribution_charts(self):
         """Compute distribution charts"""
@@ -1089,6 +1179,115 @@ class CustomerDataCollection(models.Model):
             record.monthly_analysis_chart = record._create_chart(
                 months, orders_data, successful_data, rate_data)
 
+    @api.depends('data_file')
+    def _compute_cumulative_monthly_charts(self):
+        for record in self:
+            if not record.data_file:
+                record.cumulative_monthly_analysis_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                csv_data = base64.b64decode(record.data_file)
+                csv_file = StringIO(csv_data.decode('utf-8'))
+                reader = csv.DictReader(csv_file)
+
+                # Prepare monthly data
+                monthly_data = {}
+                for row in reader:
+                    # Використовуємо date_order замість order_date і обрізаємо час
+                    date = datetime.strptime(row['date_order'].split()[0], '%Y-%m-%d')
+                    month_key = date.strftime('%m/%Y')
+
+                    if month_key not in monthly_data:
+                        monthly_data[month_key] = {
+                            'orders': 0,
+                            'successful': 0,
+                            'rate': 0
+                        }
+
+                    monthly_data[month_key]['orders'] += 1
+                    if row['state'] == 'sale':  # Змінено з 'success' на 'sale'
+                        monthly_data[month_key]['successful'] += 1
+
+                # Calculate success rates
+                for month in monthly_data:
+                    total = monthly_data[month]['orders']
+                    successful = monthly_data[month]['successful']
+                    monthly_data[month]['rate'] = (successful / total * 100) if total > 0 else 0
+
+                # Sort months chronologically
+                sorted_months = sorted(monthly_data.keys(),
+                                       key=lambda x: datetime.strptime(x, '%m/%Y'))
+
+                # Create data arrays in chronological order
+                months = sorted_months
+                orders_data = [monthly_data[month]['orders'] for month in months]
+                successful_data = [monthly_data[month]['successful'] for month in months]
+                rate_data = [monthly_data[month]['rate'] for month in months]
+
+                if not months:
+                    record.cumulative_monthly_analysis_chart = False
+                    continue
+
+                # Calculate cumulative values
+                x = np.arange(len(months))
+                months_display = [datetime.strptime(m, '%m/%Y').strftime('%B %Y') for m in months]
+                cumulative_orders = np.cumsum(orders_data)
+                cumulative_successful = np.cumsum(successful_data)
+                cumulative_rates = [100.0 * s / t if t > 0 else 0
+                                    for s, t in zip(cumulative_successful, cumulative_orders)]
+
+                # Create cumulative chart
+                fig, ax1 = plt.subplots(figsize=(15, 8))
+                ax1.set_xticks(x)
+                ax1.set_xticklabels(months_display, rotation=90, ha='center')
+
+                # Створюємо другу вісь Y
+                ax2 = ax1.twinx()
+
+                # Графіки для кількості замовлень (ліва вісь)
+                line1 = ax1.plot(x, cumulative_orders, marker='o', color='skyblue',
+                                 linewidth=2, label='Total Orders')
+                line2 = ax1.plot(x, cumulative_successful, marker='o', color='gold',
+                                 linewidth=2, label='Successful Orders')
+
+                # Графік для відсотків (права вісь)
+                line3 = ax2.plot(x, cumulative_rates, marker='o', color='purple',
+                                 linewidth=2, label='Success Rate (%)')
+
+                # Налаштування лівої осі (кількість)
+                ax1.set_xlabel('Month')
+                ax1.set_ylabel('Count')
+                ax1.tick_params(axis='y', labelcolor='black')
+
+                # Налаштування правої осі (відсотки)
+                ax2.set_ylabel('Success Rate (%)')
+                ax2.tick_params(axis='y', labelcolor='purple')
+
+                # Об'єднуємо легенди з обох осей
+                lines = line1 + line2 + line3
+                labels = [l.get_label() for l in lines]
+                ax1.legend(lines, labels, loc='upper left')
+
+                plt.title('Cumulative Monthly Analysis')
+                plt.grid(True)
+                plt.subplots_adjust(bottom=0.2)
+                plt.tight_layout()
+
+                # Save chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight', dpi=300)
+                plt.close()
+                record.cumulative_monthly_analysis_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f'Error computing cumulative monthly charts: {e.__class__}: {e}')
+                record.cumulative_monthly_analysis_chart = False
+                continue
+            finally:
+                plt.close('all')
+
     @staticmethod
     def _create_chart(months, orders_data, successful_data, rate_data):
         """Helper function for creating combined chart with three metrics"""
@@ -1117,7 +1316,8 @@ class CustomerDataCollection(models.Model):
 
             # Set x-axis labels
             months_display = [datetime.strptime(m, '%m/%Y').strftime('%B %Y') for m in months]
-            plt.xticks(x, months_display, rotation=45, ha='right')
+            ax1.set_xticks(x)
+            ax1.set_xticklabels(months_display, rotation=90, ha='center')
 
             # Add grid
             ax1.grid(True, axis='y', linestyle='--', alpha=0.7)
@@ -1129,6 +1329,7 @@ class CustomerDataCollection(models.Model):
 
             # Adjust layout and y-axis limit
             plt.ylim(0, max(successful_data) * 1.15)
+            plt.subplots_adjust(bottom=0.2)
             plt.tight_layout()
 
             # Save chart
@@ -2831,3 +3032,1407 @@ class CustomerDataCollection(models.Model):
                 print(f"Error computing payment term success chart: {str(e)}")
                 record.payment_term_success_chart = False
                 plt.close('all')
+
+    @api.depends('data_file')
+    def _compute_monthly_scatter_charts(self):
+        for record in self:
+            if not record.data_file:
+                record.monthly_analysis_scatter_chart = False
+                continue
+
+            try:
+                # Read CSV data
+                csv_data = base64.b64decode(record.data_file)
+                csv_file = StringIO(csv_data.decode('utf-8'))
+                reader = csv.DictReader(csv_file)
+
+                # Prepare monthly data
+                monthly_data = {}
+                for row in reader:
+                    date = datetime.strptime(row['date_order'].split()[0], '%Y-%m-%d')
+                    month_key = date.strftime('%m/%Y')
+
+                    if month_key not in monthly_data:
+                        monthly_data[month_key] = {
+                            'orders': 0,
+                            'successful': 0,
+                            'rate': 0
+                        }
+
+                    monthly_data[month_key]['orders'] += 1
+                    if row['state'] == 'sale':
+                        monthly_data[month_key]['successful'] += 1
+
+                print(f"MONTHLY_DATA: {monthly_data}")
+                # Calculate success rates
+                for month in monthly_data:
+                    total = monthly_data[month]['orders']
+                    successful = monthly_data[month]['successful']
+                    monthly_data[month]['rate'] = (successful / total * 100) if total > 0 else 0
+
+                # Sort months chronologically
+                sorted_months = sorted(monthly_data.keys(),
+                                       key=lambda x: datetime.strptime(x, '%m/%Y'))
+
+                # Create data arrays in chronological order
+                months = sorted_months
+                orders_data = [monthly_data[month]['orders'] for month in months]
+                successful_data = [monthly_data[month]['successful'] for month in months]
+                rate_data = [monthly_data[month]['rate'] for month in months]
+
+                if not months:
+                    record.monthly_analysis_scatter_chart = False
+                    continue
+
+                # Create monthly scatter chart
+                fig, ax1 = plt.subplots(figsize=(15, 8))
+
+                # Створюємо другу вісь Y
+                ax2 = ax1.twinx()
+
+                # Підготовка даних для осі X
+                x = np.arange(len(months))
+                months_display = [datetime.strptime(m, '%m/%Y').strftime('%B %Y') for m in months]
+                ax1.set_xticks(x)
+                ax1.set_xticklabels(months_display, rotation=90, ha='center')
+
+                # Графіки для кількості замовлень (ліва вісь) - тільки точки, без ліній
+                scatter1 = ax1.scatter(x, orders_data, color='skyblue', s=100, label='Total Orders')
+                scatter2 = ax1.scatter(x, successful_data, color='gold', s=100, label='Successful Orders')
+
+                # Графік для відсотків (права вісь) - тільки точки, без ліній
+                scatter3 = ax2.scatter(x, rate_data, color='purple', s=100, label='Success Rate (%)')
+
+                # Налаштування лівої осі (кількість)
+                ax1.set_xlabel('Month')
+                ax1.set_ylabel('Count')
+                ax1.tick_params(axis='y', labelcolor='black')
+
+                # Налаштування правої осі (відсотки)
+                ax2.set_ylabel('Success Rate (%)')
+                ax2.tick_params(axis='y', labelcolor='purple')
+
+                # Об'єднуємо легенди з обох осей
+                handles = [scatter1, scatter2, scatter3]
+                labels = ['Total Orders', 'Successful Orders', 'Success Rate (%)']
+                ax1.legend(handles, labels, loc='upper left')
+
+                plt.title('Monthly Orders Analysis (Scatter)')
+                plt.grid(True)
+                plt.subplots_adjust(bottom=0.2)
+                plt.tight_layout()
+
+                # Save chart
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', bbox_inches='tight', dpi=300)
+                plt.close()
+                record.monthly_analysis_scatter_chart = base64.b64encode(buffer.getvalue())
+                print(f"Chart: {record.monthly_analysis_scatter_chart}")
+
+            except Exception as e:
+                print(f'Error computing monthly scatter charts: {e.__class__}: {e}')
+                record.monthly_analysis_scatter_chart = False
+                continue
+            finally:
+                plt.close('all')
+
+    def action_compute_and_draw(self):
+        self._compute_monthly_combined_chart()
+        self._compute_relative_age_success_chart()
+
+    def _compute_monthly_combined_chart(self):
+        """Compute combined monthly chart with orders count, success rate and relative customer age"""
+        print("\n=== Computing Monthly Combined Chart ===")
+
+        if not self.data_file:
+            return
+
+        try:
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Find the earliest date (date_from) from the data
+            date_from = min(row['date_order'] for row in data)
+
+            # Group data by months
+            monthly_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0,
+                'customer_ages': []
+            })
+
+            for row in data:
+                order_date = row['date_order']
+                month_key = order_date.strftime('%Y-%m')
+
+                # Count orders
+                monthly_data[month_key]['total_orders'] += 1
+
+                # Count successful orders (assuming 'done' or 'sale' are success states)
+                if row['state'] in ['done', 'sale']:
+                    monthly_data[month_key]['successful_orders'] += 1
+
+                # Calculate relative customer age
+                customer_since = row['partner_create_date']
+                total_time = (order_date - date_from).days / 30.0  # Total time in months
+                customer_age = (order_date - customer_since).days / 30.0  # Age in months
+                relative_age = (customer_age / total_time * 100) if total_time > 0 else 0
+                monthly_data[month_key]['customer_ages'].append(relative_age)
+
+            # Sort months
+            sorted_months = sorted(monthly_data.keys())
+
+            # Prepare data for plotting
+            months = []
+            orders_count = []
+            success_rates = []
+            avg_relative_ages = []
+
+            for month in sorted_months:
+                data = monthly_data[month]
+                total = data['total_orders']
+                successful = data['successful_orders']
+                ages = data['customer_ages']
+
+                months.append(datetime.strptime(month, '%Y-%m'))
+                orders_count.append(total)
+                success_rates.append((successful / total * 100) if total > 0 else 0)
+                avg_relative_ages.append(sum(ages) / len(ages) if ages else 0)
+
+            # Create figure and primary axis
+            fig, ax1 = plt.subplots(figsize=(15, 8))
+
+            # Primary axis - Total Orders (blue)
+            color1 = 'blue'
+            ax1.set_xlabel('Month')
+            ax1.set_ylabel('Total Orders', color=color1)
+            ax1.plot(months, orders_count, color=color1, marker='.', markersize=10, label='Total Orders')
+            ax1.tick_params(axis='y', labelcolor=color1)
+
+            # Secondary axis - Success Rate (orange)
+            ax2 = ax1.twinx()
+            color2 = 'orange'
+            ax2.set_ylabel('Success Rate (%)', color=color2)
+            ax2.plot(months, success_rates, color=color2, marker='.', markersize=10, label='Success Rate (%)')
+            ax2.tick_params(axis='y', labelcolor=color2)
+
+            # Third axis - Relative Customer Age (green)
+            ax3 = ax1.twinx()
+            # Offset the third axis
+            ax3.spines["right"].set_position(("axes", 1.1))
+            color3 = 'green'
+            ax3.set_ylabel('Relative Customer Age (%)', color=color3)
+            ax3.plot(months, avg_relative_ages, color=color3, marker='.', markersize=10,
+                     label='Relative Customer Age (%)\n(% of time from first order)')
+            ax3.tick_params(axis='y', labelcolor=color3)
+
+            # Format x-axis
+            ax1.xaxis.set_major_locator(plt.matplotlib.dates.MonthLocator(interval=6))
+            ax1.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y-%m'))
+            plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45)
+
+            # Add legend with explanation
+            lines1, labels1 = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            lines3, labels3 = ax3.get_legend_handles_labels()
+            ax3.legend(lines1 + lines2 + lines3, labels1 + labels2 + labels3,
+                       loc='upper right', bbox_to_anchor=(1.2, 1.0))
+
+            plt.title(
+                'Monthly Combined Analysis\nRelative Customer Age shows the average customer age as a percentage of time passed since first order')
+            plt.grid(True)
+            plt.tight_layout()
+
+            # Save to binary field
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight')
+            plt.close()
+            self.monthly_combined_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing monthly combined chart: {str(e)}")
+            return
+
+    def _compute_relative_age_success_chart(self):
+        """Compute chart showing relationship between success rate and absolute customer age (in months),
+        grouped into intervals by success rate with subgroups for large groups"""
+        print("\n=== Computing Success Rate vs Customer Age Chart ===")
+
+        if not self.data_file:
+            return
+
+        try:
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Get current date for age calculation
+            current_date = max(row['date_order'] for row in data)
+
+            # Calculate success rate and age for each partner
+            partner_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0,
+                'customer_since': None,
+                'success_rate': 0
+            })
+
+            # Collect data for each partner
+            for row in data:
+                partner_id = row['partner_id']
+                partner_data[partner_id]['total_orders'] += 1
+                if row['state'] in ['done', 'sale']:
+                    partner_data[partner_id]['successful_orders'] += 1
+                partner_data[partner_id]['customer_since'] = row['partner_create_date']
+
+            # Calculate success rate and age for each partner
+            for partner_id, data in partner_data.items():
+                success_rate = (data['successful_orders'] / data['total_orders'] * 100) if data[
+                                                                                               'total_orders'] > 0 else 0
+                partner_data[partner_id]['success_rate'] = success_rate
+                # Calculate age in months
+                age_days = (current_date - data['customer_since']).days
+                partner_data[partner_id]['age_months'] = age_days / 30.0
+
+            # Create initial 20 groups (0-5%, 5-10%, etc.)
+            initial_groups = defaultdict(list)
+
+            # Distribute partners into initial groups
+            for partner_id, data in partner_data.items():
+                success_rate = data['success_rate']
+                group_index = min(int(success_rate // 5), 19)  # 20 groups (0-19)
+                initial_groups[group_index].append({
+                    'partner_id': partner_id,
+                    'success_rate': data['success_rate'],
+                    'age_months': data['age_months']
+                })
+
+            # Process groups and split if necessary
+            plot_data = []
+            for group_index, partners in initial_groups.items():
+                if len(partners) > 500:
+                    # Sort partners by success rate for even distribution
+                    partners.sort(key=lambda x: x['success_rate'])
+                    # Calculate number of subgroups needed
+                    num_subgroups = (len(partners) + 499) // 500  # Round up division
+                    subgroup_size = len(partners) // num_subgroups
+                    remainder = len(partners) % num_subgroups
+
+                    # Create subgroups
+                    start_idx = 0
+                    for i in range(num_subgroups):
+                        current_size = subgroup_size + (1 if i < remainder else 0)
+                        subgroup = partners[start_idx:start_idx + current_size]
+
+                        avg_success_rate = sum(p['success_rate'] for p in subgroup) / len(subgroup)
+                        avg_age = sum(p['age_months'] for p in subgroup) / len(subgroup)
+
+                        plot_data.append({
+                            'success_rate': avg_success_rate,
+                            'avg_age': avg_age,
+                            'partners_count': len(subgroup)
+                        })
+
+                        start_idx += current_size
+                else:
+                    # Process regular group
+                    success_rate_mid = group_index * 5 + 2.5
+                    avg_age = sum(p['age_months'] for p in partners) / len(partners)
+                    plot_data.append({
+                        'success_rate': success_rate_mid,
+                        'avg_age': avg_age,
+                        'partners_count': len(partners)
+                    })
+
+            # Sort plot data by success rate for consistent visualization
+            plot_data.sort(key=lambda x: x['success_rate'])
+
+            # Prepare data for plotting
+            success_rates = [d['success_rate'] for d in plot_data]
+            avg_ages = [d['avg_age'] for d in plot_data]
+            partners_counts = [d['partners_count'] for d in plot_data]
+
+            # Calculate marker sizes (scaled for better visibility)
+            max_count = max(partners_counts)
+            marker_sizes = [100 + (count / max_count) * 900 for count in partners_counts]
+
+            # Create plot
+            plt.figure(figsize=(15, 8))
+            scatter = plt.scatter(success_rates, avg_ages, s=marker_sizes, alpha=0.6)
+
+            # Add count labels next to points
+            for i, (x, y, count) in enumerate(zip(success_rates, avg_ages, partners_counts)):
+                plt.annotate(f'  {count}', (x, y),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Success Rate (%)')
+            plt.ylabel('Average Customer Age (months)')
+            plt.title(
+                'Average Customer Age by Success Rate Intervals\nGroups with >500 customers are subdivided by success rate\nBubble size and number indicate customer count in each group')
+
+            # Set x-axis ticks
+            plt.xticks([i * 5 for i in range(21)],
+                       [f'{i * 5}' for i in range(21)],
+                       rotation=45)
+
+            plt.grid(True)
+            plt.tight_layout()
+
+            # Save to binary field
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight')
+            plt.close()
+            self.relative_age_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing success rate vs customer age chart: {str(e)}")
+            return
+
+
+
+    def _compute_salesperson_age_success_chart(self):
+        """Compute chart showing success rate by salesperson age"""
+        print("\nComputing salesperson age success chart...")
+
+        try:
+            # Читаємо дані з CSV
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Групуємо замовлення по менеджерам
+            salesperson_data = defaultdict(lambda: {
+                'first_order_date': None,
+                'last_order_date': None,
+                'total_orders': 0,
+                'successful_orders': 0
+            })
+
+            # Збираємо дані по кожному менеджеру
+            for row in data:
+                user_id = row['user_id']
+                if not user_id:
+                    continue
+
+                order_date = row['date_order']
+
+                # Оновлюємо першу та останню дату замовлення
+                if not salesperson_data[user_id]['first_order_date'] or order_date < salesperson_data[user_id][
+                    'first_order_date']:
+                    salesperson_data[user_id]['first_order_date'] = order_date
+                if not salesperson_data[user_id]['last_order_date'] or order_date > salesperson_data[user_id][
+                    'last_order_date']:
+                    salesperson_data[user_id]['last_order_date'] = order_date
+
+                # Рахуємо замовлення
+                salesperson_data[user_id]['total_orders'] += 1
+                if row['state'] in ['done', 'sale']:
+                    salesperson_data[user_id]['successful_orders'] += 1
+
+            # Розраховуємо вік та успішність для кожного менеджера
+            chart_data = []
+            for user_id, data in salesperson_data.items():
+                # Пропускаємо менеджерів з малою кількістю замовлень
+                if data['total_orders'] < 5:
+                    continue
+
+                # Вік в місяцях
+                age_days = (data['last_order_date'] - data['first_order_date']).days
+                age_months = age_days / 30.0
+
+                # Відсоток успішних замовлень
+                success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+
+                chart_data.append({
+                    'age_months': age_months,
+                    'success_rate': success_rate,
+                    'total_orders': data['total_orders']
+                })
+
+            # Створюємо графік
+            plt.figure(figsize=(15, 8))
+
+            # Малюємо точки однакового розміру
+            plt.scatter([d['age_months'] for d in chart_data],
+                        [d['success_rate'] for d in chart_data],
+                        s=100, alpha=0.5)
+
+            # Додаємо мітки з кількістю замовлень біля кожної точки
+            for d in chart_data:
+                plt.annotate(str(d['total_orders']),
+                             (d['age_months'], d['success_rate']),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Salesperson Age (Months)')
+            plt.ylabel('Success Rate (%)')
+            plt.title('Success Rate by Salesperson Age')
+
+            # Додаємо сітку
+            plt.grid(True, linestyle='--', alpha=0.7)
+
+            # Зберігаємо графік
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            plt.close()
+
+            # Конвертуємо в base64
+            self.salesperson_age_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing salesperson age success chart: {str(e)}")
+
+    def _compute_salesperson_orders_success_chart(self):
+        """Compute chart showing success rate by total number of salesperson orders"""
+        print("\nComputing salesperson orders success chart...")
+
+        try:
+            # Читаємо дані з CSV
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Групуємо замовлення по менеджерам
+            salesperson_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0
+            })
+
+            # Збираємо дані по кожному менеджеру
+            for row in data:
+                user_id = row['user_id']
+                if not user_id:
+                    continue
+
+                # Рахуємо замовлення
+                salesperson_data[user_id]['total_orders'] += 1
+                if row['state'] in ['done', 'sale']:
+                    salesperson_data[user_id]['successful_orders'] += 1
+
+            # Розраховуємо успішність для кожного менеджера
+            chart_data = []
+            for user_id, data in salesperson_data.items():
+                # Пропускаємо менеджерів з малою кількістю замовлень
+                if data['total_orders'] < 5:
+                    continue
+
+                # Відсоток успішних замовлень
+                success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+
+                chart_data.append({
+                    'total_orders': data['total_orders'],
+                    'success_rate': success_rate
+                })
+
+            # Створюємо графік
+            plt.figure(figsize=(15, 8))
+
+            # Малюємо точки
+            plt.scatter([d['total_orders'] for d in chart_data],
+                        [d['success_rate'] for d in chart_data],
+                        s=100, alpha=0.5)
+
+            # Додаємо мітки з ID менеджера біля кожної точки
+            for d in chart_data:
+                plt.annotate(str(d['total_orders']),
+                             (d['total_orders'], d['success_rate']),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Total Number of Orders')
+            plt.ylabel('Success Rate (%)')
+            plt.title('Success Rate by Total Number of Salesperson Orders')
+
+            # Додаємо сітку
+            plt.grid(True, linestyle='--', alpha=0.7)
+
+            # Зберігаємо графік
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            plt.close()
+
+            # Конвертуємо в base64
+            self.salesperson_orders_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing salesperson orders success chart: {str(e)}")
+
+    def _compute_salesperson_total_amount_success_chart(self):
+        """Compute chart showing success rate by total amount of salesperson orders"""
+        try:
+            # Читаємо дані з CSV
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Групуємо замовлення по менеджерам
+            salesperson_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0,
+                'total_amount': 0.0
+            })
+
+            # Збираємо дані по кожному менеджеру
+            for row in data:
+                user_id = row['user_id']
+                if not user_id:
+                    continue
+
+                amount = float(row['amount_total'])
+
+                # Рахуємо замовлення та суми ВСІХ замовлень
+                salesperson_data[user_id]['total_orders'] += 1
+                salesperson_data[user_id]['total_amount'] += amount  # Додаємо суму до загальної
+                if row['state'] in ['done', 'sale']:
+                    salesperson_data[user_id]['successful_orders'] += 1
+
+            # Створюємо лог перед побудовою графіка
+            log_message = "\nTotal Amount Chart - Final Data:\n"
+            for user_id, data in salesperson_data.items():
+                if data['total_orders'] >= 5:
+                    success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+                    log_message += (
+                        f"Salesperson {user_id}:\n"
+                        f"  - Total Orders: {data['total_orders']}\n"
+                        f"  - Successful Orders: {data['successful_orders']}\n"
+                        f"  - Total Amount: {data['total_amount']:.2f}\n"
+                        f"  - Success Rate: {success_rate:.2f}%\n"
+                    )
+
+            # Розраховуємо успішність для кожного менеджера
+            chart_data = []
+            for user_id, data in salesperson_data.items():
+                # Пропускаємо менеджерів з малою кількістю замовлень
+                if data['total_orders'] < 5:
+                    continue
+
+                # Відсоток успішних замовлень
+                success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+
+                chart_data.append({
+                    'total_amount': data['total_amount'],
+                    'success_rate': success_rate,
+                    'total_orders': data['total_orders']
+                })
+
+            plt.clf()
+            # Створюємо графік
+            plt.figure(figsize=(15, 8))
+
+            # Малюємо точки
+            plt.scatter([d['total_amount'] for d in chart_data],
+                        [d['success_rate'] for d in chart_data],
+                        s=100, alpha=0.5)
+
+            # Додаємо мітки з кількістю замовлень біля кожної точки
+            for d in chart_data:
+                plt.annotate(str(d['total_orders']),
+                             (d['total_amount'], d['success_rate']),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Total Amount of All Orders')
+            plt.ylabel('Success Rate (%)')
+            plt.title('Success Rate by Total Amount of All Salesperson Orders')
+
+            # Форматуємо вісь X для відображення сум у тисячах
+            ax = plt.gca()
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x / 1000), ',')))
+            plt.xlabel('Total Amount of All Orders (Thousands)')
+
+            # Додаємо сітку
+            plt.grid(True, linestyle='--', alpha=0.7)
+
+            # Зберігаємо графік
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            plt.close()
+
+            # Конвертуємо в base64
+            self.salesperson_total_amount_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing salesperson total amount success chart: {str(e)}")
+
+    def _compute_salesperson_success_amount_success_chart(self):
+        """Compute chart showing success rate by amount of successful salesperson orders"""
+        try:
+            # Читаємо дані з CSV
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Групуємо замовлення по менеджерам
+            salesperson_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0,
+                'success_amount': 0.0
+            })
+
+            # Збираємо дані по кожному менеджеру
+            for row in data:
+                user_id = row['user_id']
+                if not user_id:
+                    continue
+
+                amount = float(row['amount_total'])
+
+                # Рахуємо замовлення та суми тільки УСПІШНИХ замовлень
+                salesperson_data[user_id]['total_orders'] += 1
+                if row['state'] in ['done', 'sale']:
+                    salesperson_data[user_id]['successful_orders'] += 1
+                    salesperson_data[user_id]['success_amount'] += amount  # Додаємо суму тільки для успішних
+
+            # Створюємо лог перед побудовою графіка
+            log_message = "\nSuccess Amount Chart - Final Data:\n"
+            for user_id, data in salesperson_data.items():
+                if data['total_orders'] >= 5:
+                    success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+                    log_message += (
+                        f"Salesperson {user_id}:\n"
+                        f"  - Total Orders: {data['total_orders']}\n"
+                        f"  - Successful Orders: {data['successful_orders']}\n"
+                        f"  - Success Amount: {data['success_amount']:.2f}\n"
+                        f"  - Success Rate: {success_rate:.2f}%\n"
+                    )
+
+            # Розраховуємо успішність для кожного менеджера
+            chart_data = []
+            for user_id, data in salesperson_data.items():
+                # Пропускаємо менеджерів з малою кількістю замовлень
+                if data['total_orders'] < 5:
+                    continue
+
+                # Відсоток успішних замовлень
+                success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+
+                chart_data.append({
+                    'success_amount': data['success_amount'],
+                    'success_rate': success_rate,
+                    'total_orders': data['total_orders']
+                })
+
+            plt.clf()
+            # Створюємо графік
+            plt.figure(figsize=(15, 8))
+
+            # Малюємо точки
+            plt.scatter([d['success_amount'] for d in chart_data],
+                        [d['success_rate'] for d in chart_data],
+                        s=100, alpha=0.5)
+
+            # Додаємо мітки з кількістю замовлень біля кожної точки
+            for d in chart_data:
+                plt.annotate(str(d['total_orders']),
+                             (d['success_amount'], d['success_rate']),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Amount of Successful Orders Only')
+            plt.ylabel('Success Rate (%)')
+            plt.title('Success Rate by Amount of Successful Salesperson Orders')
+
+            # Форматуємо вісь X для відображення сум у тисячах
+            ax = plt.gca()
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x / 1000), ',')))
+            plt.xlabel('Amount of Successful Orders Only (Thousands)')
+
+            # Додаємо сітку
+            plt.grid(True, linestyle='--', alpha=0.7)
+
+            # Зберігаємо графік
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            plt.close()
+
+            # Конвертуємо в base64
+            self.salesperson_success_amount_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing salesperson success amount success chart: {str(e)}")
+
+    def _compute_salesperson_avg_amount_success_chart(self):
+        """Compute chart showing success rate by average amount of all salesperson orders"""
+        try:
+            # Читаємо дані з CSV
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Групуємо замовлення по менеджерам
+            salesperson_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0,
+                'total_amount': 0.0
+            })
+
+            # Збираємо дані по кожному менеджеру
+            for row in data:
+                user_id = row['user_id']
+                if not user_id:
+                    continue
+
+                amount = float(row['amount_total'])
+
+                # Рахуємо замовлення та суми ВСІХ замовлень
+                salesperson_data[user_id]['total_orders'] += 1
+                salesperson_data[user_id]['total_amount'] += amount
+                if row['state'] in ['done', 'sale']:
+                    salesperson_data[user_id]['successful_orders'] += 1
+
+            # Створюємо лог перед побудовою графіка
+            log_message = "\nAverage Amount Chart - Final Data:\n"
+            chart_data = []
+            for user_id, data in salesperson_data.items():
+                if data['total_orders'] >= 5:
+                    success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+                    avg_amount = data['total_amount'] / data['total_orders']
+
+                    log_message += (
+                        f"Salesperson {user_id}:\n"
+                        f"  - Total Orders: {data['total_orders']}\n"
+                        f"  - Successful Orders: {data['successful_orders']}\n"
+                        f"  - Average Amount: {avg_amount:.2f}\n"
+                        f"  - Success Rate: {success_rate:.2f}%\n"
+                    )
+
+                    chart_data.append({
+                        'avg_amount': avg_amount,
+                        'success_rate': success_rate,
+                        'total_orders': data['total_orders']
+                    })
+
+            # Очищаємо попередній графік
+            plt.clf()
+
+            # Створюємо графік
+            plt.figure(figsize=(15, 8))
+
+            # Малюємо точки
+            plt.scatter([d['avg_amount'] for d in chart_data],
+                        [d['success_rate'] for d in chart_data],
+                        s=100, alpha=0.5)
+
+            # Додаємо мітки з кількістю замовлень біля кожної точки
+            for d in chart_data:
+                plt.annotate(str(d['total_orders']),
+                             (d['avg_amount'], d['success_rate']),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Average Amount of All Orders')
+            plt.ylabel('Success Rate (%)')
+            plt.title('Success Rate by Average Amount of All Salesperson Orders')
+
+            # Форматуємо вісь X для відображення сум у тисячах
+            ax = plt.gca()
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x / 1000), ',')))
+            plt.xlabel('Average Amount of All Orders (Thousands)')
+
+            # Додаємо сітку
+            plt.grid(True, linestyle='--', alpha=0.7)
+
+            # Зберігаємо графік
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            plt.close()
+
+            # Конвертуємо в base64
+            self.salesperson_avg_amount_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing salesperson average amount success chart: {str(e)}")
+
+    def _compute_salesperson_avg_success_amount_success_chart(self):
+        """Compute chart showing success rate by average amount of successful salesperson orders"""
+        try:
+            # Читаємо дані з CSV
+            data = self._read_csv_data()
+            if not data:
+                return
+
+            # Групуємо замовлення по менеджерам
+            salesperson_data = defaultdict(lambda: {
+                'total_orders': 0,
+                'successful_orders': 0,
+                'success_amount': 0.0
+            })
+
+            # Збираємо дані по кожному менеджеру
+            for row in data:
+                user_id = row['user_id']
+                if not user_id:
+                    continue
+
+                amount = float(row['amount_total'])
+
+                # Рахуємо замовлення та суми тільки УСПІШНИХ замовлень
+                salesperson_data[user_id]['total_orders'] += 1
+                if row['state'] in ['done', 'sale']:
+                    salesperson_data[user_id]['successful_orders'] += 1
+                    salesperson_data[user_id]['success_amount'] += amount
+
+            # Створюємо лог перед побудовою графіка
+            log_message = "\nAverage Success Amount Chart - Final Data:\n"
+            chart_data = []
+            for user_id, data in salesperson_data.items():
+                if data['total_orders'] >= 5:
+                    success_rate = (data['successful_orders'] / data['total_orders'] * 100)
+                    avg_success_amount = data['success_amount'] / data['successful_orders'] if data[
+                                                                                                   'successful_orders'] > 0 else 0
+
+                    log_message += (
+                        f"Salesperson {user_id}:\n"
+                        f"  - Total Orders: {data['total_orders']}\n"
+                        f"  - Successful Orders: {data['successful_orders']}\n"
+                        f"  - Average Success Amount: {avg_success_amount:.2f}\n"
+                        f"  - Success Rate: {success_rate:.2f}%\n"
+                    )
+
+                    chart_data.append({
+                        'avg_success_amount': avg_success_amount,
+                        'success_rate': success_rate,
+                        'total_orders': data['total_orders']
+                    })
+
+            # Очищаємо попередній графік
+            plt.clf()
+
+            # Створюємо графік
+            plt.figure(figsize=(15, 8))
+
+            # Малюємо точки
+            plt.scatter([d['avg_success_amount'] for d in chart_data],
+                        [d['success_rate'] for d in chart_data],
+                        s=100, alpha=0.5)
+
+            # Додаємо мітки з кількістю замовлень біля кожної точки
+            for d in chart_data:
+                plt.annotate(str(d['total_orders']),
+                             (d['avg_success_amount'], d['success_rate']),
+                             xytext=(5, 5), textcoords='offset points')
+
+            plt.xlabel('Average Amount of Successful Orders Only')
+            plt.ylabel('Success Rate (%)')
+            plt.title('Success Rate by Average Amount of Successful Salesperson Orders')
+
+            # Форматуємо вісь X для відображення сум у тисячах
+            ax = plt.gca()
+            ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x / 1000), ',')))
+            plt.xlabel('Average Amount of Successful Orders Only (Thousands)')
+
+            # Додаємо сітку
+            plt.grid(True, linestyle='--', alpha=0.7)
+
+            # Зберігаємо графік
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+            plt.close()
+
+            # Конвертуємо в base64
+            self.salesperson_avg_success_amount_success_chart = base64.b64encode(buffer.getvalue())
+
+        except Exception as e:
+            print(f"Error computing salesperson average success amount success chart: {str(e)}")
+
+    def _compute_salesperson_order_intensity_chart(self):
+        """Compute chart showing success rate by order intensity for each salesperson"""
+        for record in self:
+            try:
+                # Читаємо дані з CSV
+                data = record._read_csv_data()
+                if not data:
+                    record.salesperson_order_intensity_success_chart = False
+                    continue
+
+                # Рахуємо метрики для кожного менеджера
+                salesperson_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0
+                })
+
+                # Збираємо статистику по кожному менеджеру
+                for row in data:
+                    user_id = row['user_id']
+                    if not user_id:
+                        continue
+
+                    order_date = row['date_order']
+
+                    stats = salesperson_stats[user_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    if row['state'] in ['done', 'sale']:
+                        stats['success'] += 1
+
+                # Створюємо лог перед побудовою графіка
+                log_message = "\nOrder Intensity Chart - Final Data:\n"
+                chart_data = []
+
+                # Рахуємо success rate та інтенсивність для кожного менеджера
+                for user_id, stats in salesperson_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['total'] >= 5:
+                        # Рахуємо місяці між першим і останнім замовленням
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Рахуємо інтенсивність замовлень (замовлень на місяць)
+                        intensity = stats['total'] / months_active
+
+                        # Рахуємо success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        log_message += (
+                            f"Salesperson {user_id}:\n"
+                            f"  - First Order: {stats['first_order']}\n"
+                            f"  - Last Order: {stats['last_order']}\n"
+                            f"  - Months Active: {months_active:.2f}\n"
+                            f"  - Total Orders: {stats['total']}\n"
+                            f"  - Successful Orders: {stats['success']}\n"
+                            f"  - Order Intensity: {intensity:.2f} orders/month\n"
+                            f"  - Success Rate: {success_rate:.2f}%\n"
+                        )
+
+                        chart_data.append({
+                            'intensity': intensity,
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                if not chart_data:
+                    print("No data to plot")
+                    record.salesperson_order_intensity_success_chart = False
+                    continue
+
+                # Очищаємо попередній графік
+                plt.clf()
+
+                # Створюємо графік
+                plt.figure(figsize=(15, 8))
+
+                # Малюємо точки
+                plt.scatter([d['intensity'] for d in chart_data],
+                            [d['success_rate'] for d in chart_data],
+                            s=100, alpha=0.5)
+
+                # Додаємо мітки з кількістю замовлень біля кожної точки
+                for d in chart_data:
+                    plt.annotate(str(d['total_orders']),
+                                 (d['intensity'], d['success_rate']),
+                                 xytext=(5, 5), textcoords='offset points')
+
+                # Додаємо лінію тренду
+                intensities = [d['intensity'] for d in chart_data]
+                success_rates = [d['success_rate'] for d in chart_data]
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                plt.xlabel('Order Intensity (orders per month)')
+                plt.ylabel('Success Rate (%)')
+                plt.title('Success Rate by Order Intensity per Salesperson\n(number shows total orders)')
+
+                # Додаємо сітку
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Зберігаємо графік
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+                plt.close()
+
+                # Конвертуємо в base64
+                record.salesperson_order_intensity_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing salesperson order intensity chart: {str(e)}")
+                record.salesperson_order_intensity_success_chart = False
+                plt.close('all')
+
+    def _compute_salesperson_success_order_intensity_chart(self):
+        """Compute chart showing success rate by successful order intensity for each salesperson"""
+        for record in self:
+            try:
+                # Читаємо дані з CSV
+                data = record._read_csv_data()
+                if not data:
+                    record.salesperson_success_order_intensity_chart = False
+                    continue
+
+                # Рахуємо метрики для кожного менеджера
+                salesperson_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0
+                })
+
+                # Збираємо статистику по кожному менеджеру
+                for row in data:
+                    user_id = row['user_id']
+                    if not user_id:
+                        continue
+
+                    order_date = row['date_order']
+
+                    stats = salesperson_stats[user_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    if row['state'] in ['done', 'sale']:
+                        stats['success'] += 1
+
+                # Створюємо лог перед побудовою графіка
+                log_message = "\nSuccess Order Intensity Chart - Final Data:\n"
+                chart_data = []
+
+                # Рахуємо success rate та інтенсивність для кожного менеджера
+                for user_id, stats in salesperson_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['success'] >= 5:
+                        # Рахуємо місяці між першим і останнім замовленням
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Рахуємо інтенсивність успішних замовлень (успішних замовлень на місяць)
+                        success_intensity = stats['success'] / months_active
+
+                        # Рахуємо success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        log_message += (
+                            f"Salesperson {user_id}:\n"
+                            f"  - First Order: {stats['first_order']}\n"
+                            f"  - Last Order: {stats['last_order']}\n"
+                            f"  - Months Active: {months_active:.2f}\n"
+                            f"  - Total Orders: {stats['total']}\n"
+                            f"  - Successful Orders: {stats['success']}\n"
+                            f"  - Success Order Intensity: {success_intensity:.2f} orders/month\n"
+                            f"  - Success Rate: {success_rate:.2f}%\n"
+                        )
+
+                        chart_data.append({
+                            'intensity': success_intensity,
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                if not chart_data:
+                    print("No data to plot")
+                    record.salesperson_success_order_intensity_chart = False
+                    continue
+
+                # Очищаємо попередній графік
+                plt.clf()
+
+                # Створюємо графік
+                plt.figure(figsize=(15, 8))
+
+                # Малюємо точки
+                plt.scatter([d['intensity'] for d in chart_data],
+                            [d['success_rate'] for d in chart_data],
+                            s=100, alpha=0.5)
+
+                # Додаємо мітки з кількістю замовлень біля кожної точки
+                for d in chart_data:
+                    plt.annotate(str(d['total_orders']),
+                                 (d['intensity'], d['success_rate']),
+                                 xytext=(5, 5), textcoords='offset points')
+
+                # Додаємо лінію тренду
+                intensities = [d['intensity'] for d in chart_data]
+                success_rates = [d['success_rate'] for d in chart_data]
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                plt.xlabel('Success Order Intensity (successful orders per month)')
+                plt.ylabel('Success Rate (%)')
+                plt.title('Success Rate by Successful Order Intensity per Salesperson\n(number shows total orders)')
+
+                # Додаємо сітку
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Зберігаємо графік
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+                plt.close()
+
+                # Конвертуємо в base64
+                record.salesperson_success_order_intensity_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing salesperson success order intensity chart: {str(e)}")
+                record.salesperson_success_order_intensity_chart = False
+                plt.close('all')
+
+    def _compute_salesperson_amount_intensity_chart(self):
+        """Compute chart showing success rate by amount intensity for each salesperson"""
+        for record in self:
+            try:
+                # Читаємо дані з CSV
+                data = record._read_csv_data()
+                if not data:
+                    record.salesperson_amount_intensity_success_chart = False
+                    continue
+
+                # Рахуємо метрики для кожного менеджера
+                salesperson_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0,
+                    'total_amount': 0
+                })
+
+                # Збираємо статистику по кожному менеджеру
+                for row in data:
+                    user_id = row['user_id']
+                    if not user_id:
+                        continue
+
+                    order_date = row['date_order']
+                    amount = float(row['amount_total'])
+
+                    stats = salesperson_stats[user_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    stats['total_amount'] += amount
+                    if row['state'] in ['done', 'sale']:
+                        stats['success'] += 1
+
+                # Створюємо лог перед побудовою графіка
+                log_message = "\nAmount Intensity Chart - Final Data:\n"
+                chart_data = []
+
+                # Рахуємо success rate та інтенсивність для кожного менеджера
+                for user_id, stats in salesperson_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['total'] >= 5:
+                        # Рахуємо місяці між першим і останнім замовленням
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Рахуємо інтенсивність за сумою (сума на місяць)
+                        amount_intensity = stats['total_amount'] / months_active
+
+                        # Рахуємо success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        log_message += (
+                            f"Salesperson {user_id}:\n"
+                            f"  - First Order: {stats['first_order']}\n"
+                            f"  - Last Order: {stats['last_order']}\n"
+                            f"  - Months Active: {months_active:.2f}\n"
+                            f"  - Total Orders: {stats['total']}\n"
+                            f"  - Total Amount: {stats['total_amount']:.2f}\n"
+                            f"  - Amount Intensity: {amount_intensity:.2f} per month\n"
+                            f"  - Success Rate: {success_rate:.2f}%\n"
+                        )
+
+                        chart_data.append({
+                            'intensity': amount_intensity,
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                if not chart_data:
+                    print("No data to plot")
+                    record.salesperson_amount_intensity_success_chart = False
+                    continue
+
+                # Очищаємо попередній графік
+                plt.clf()
+
+                # Створюємо графік
+                plt.figure(figsize=(15, 8))
+
+                # Малюємо точки
+                plt.scatter([d['intensity'] for d in chart_data],
+                            [d['success_rate'] for d in chart_data],
+                            s=100, alpha=0.5)
+
+                # Додаємо мітки з кількістю замовлень біля кожної точки
+                for d in chart_data:
+                    plt.annotate(str(d['total_orders']),
+                                 (d['intensity'], d['success_rate']),
+                                 xytext=(5, 5), textcoords='offset points')
+
+                # Додаємо лінію тренду
+                intensities = [d['intensity'] for d in chart_data]
+                success_rates = [d['success_rate'] for d in chart_data]
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                plt.xlabel('Amount Intensity (amount per month)')
+                plt.ylabel('Success Rate (%)')
+                plt.title('Success Rate by Amount Intensity per Salesperson\n(number shows total orders)')
+
+                # Форматуємо вісь X для відображення сум у тисячах
+                ax = plt.gca()
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x / 1000), ',')))
+                plt.xlabel('Amount Intensity (thousands per month)')
+
+                # Додаємо сітку
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Зберігаємо графік
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+                plt.close()
+
+                # Конвертуємо в base64
+                record.salesperson_amount_intensity_success_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing salesperson amount intensity chart: {str(e)}")
+                record.salesperson_amount_intensity_success_chart = False
+                plt.close('all')
+
+    def _compute_salesperson_success_amount_intensity_chart(self):
+        """Compute chart showing success rate by successful amount intensity for each salesperson"""
+        for record in self:
+            try:
+                # Читаємо дані з CSV
+                data = record._read_csv_data()
+                if not data:
+                    record.salesperson_success_amount_intensity_chart = False
+                    continue
+
+                # Рахуємо метрики для кожного менеджера
+                salesperson_stats = defaultdict(lambda: {
+                    'first_order': None,
+                    'last_order': None,
+                    'total': 0,
+                    'success': 0,
+                    'success_amount': 0
+                })
+
+                # Збираємо статистику по кожному менеджеру
+                for row in data:
+                    user_id = row['user_id']
+                    if not user_id:
+                        continue
+
+                    order_date = row['date_order']
+                    amount = float(row['amount_total'])
+
+                    stats = salesperson_stats[user_id]
+                    if not stats['first_order'] or order_date < stats['first_order']:
+                        stats['first_order'] = order_date
+                    if not stats['last_order'] or order_date > stats['last_order']:
+                        stats['last_order'] = order_date
+
+                    stats['total'] += 1
+                    if row['state'] in ['done', 'sale']:
+                        stats['success'] += 1
+                        stats['success_amount'] += amount
+
+                # Створюємо лог перед побудовою графіка
+                log_message = "\nSuccess Amount Intensity Chart - Final Data:\n"
+                chart_data = []
+
+                # Рахуємо success rate та інтенсивність для кожного менеджера
+                for user_id, stats in salesperson_stats.items():
+                    if stats['first_order'] and stats['last_order'] and stats['success'] >= 5:
+                        # Рахуємо місяці між першим і останнім замовленням
+                        months_active = ((stats['last_order'] - stats['first_order']).days / 30.44) + 1
+
+                        # Рахуємо інтенсивність успішних замовлень за сумою (успішна сума на місяць)
+                        success_amount_intensity = stats['success_amount'] / months_active
+
+                        # Рахуємо success rate
+                        success_rate = (stats['success'] / stats['total'] * 100)
+
+                        log_message += (
+                            f"Salesperson {user_id}:\n"
+                            f"  - First Order: {stats['first_order']}\n"
+                            f"  - Last Order: {stats['last_order']}\n"
+                            f"  - Months Active: {months_active:.2f}\n"
+                            f"  - Total Orders: {stats['total']}\n"
+                            f"  - Success Amount: {stats['success_amount']:.2f}\n"
+                            f"  - Success Amount Intensity: {success_amount_intensity:.2f} per month\n"
+                            f"  - Success Rate: {success_rate:.2f}%\n"
+                        )
+
+                        chart_data.append({
+                            'intensity': success_amount_intensity,
+                            'success_rate': success_rate,
+                            'total_orders': stats['total']
+                        })
+
+                if not chart_data:
+                    print("No data to plot")
+                    record.salesperson_success_amount_intensity_chart = False
+                    continue
+
+                # Очищаємо попередній графік
+                plt.clf()
+
+                # Створюємо графік
+                plt.figure(figsize=(15, 8))
+
+                # Малюємо точки
+                plt.scatter([d['intensity'] for d in chart_data],
+                            [d['success_rate'] for d in chart_data],
+                            s=100, alpha=0.5)
+
+                # Додаємо мітки з кількістю замовлень біля кожної точки
+                for d in chart_data:
+                    plt.annotate(str(d['total_orders']),
+                                 (d['intensity'], d['success_rate']),
+                                 xytext=(5, 5), textcoords='offset points')
+
+                # Додаємо лінію тренду
+                intensities = [d['intensity'] for d in chart_data]
+                success_rates = [d['success_rate'] for d in chart_data]
+                z = np.polyfit(intensities, success_rates, 1)
+                p = np.poly1d(z)
+                plt.plot(intensities, p(intensities), "r--", alpha=0.8)
+
+                plt.xlabel('Success Amount Intensity (successful amount per month)')
+                plt.ylabel('Success Rate (%)')
+                plt.title('Success Rate by Successful Amount Intensity per Salesperson\n(number shows total orders)')
+
+                # Форматуємо вісь X для відображення сум у тисячах
+                ax = plt.gca()
+                ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x / 1000), ',')))
+                plt.xlabel('Success Amount Intensity (thousands per month)')
+
+                # Додаємо сітку
+                plt.grid(True, linestyle='--', alpha=0.7)
+
+                # Зберігаємо графік
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+                plt.close()
+
+                # Конвертуємо в base64
+                record.salesperson_success_amount_intensity_chart = base64.b64encode(buffer.getvalue())
+
+            except Exception as e:
+                print(f"Error computing salesperson success amount intensity chart: {str(e)}")
+                record.salesperson_success_amount_intensity_chart = False
+                plt.close('all')
+
+    def action_compute_salesperson_charts(self):
+        """Compute all salesperson analysis charts"""
+        self.ensure_one()
+        if not self.data_file:
+            raise UserError(_('Please collect data or upload a CSV file first.'))
+
+        # Обчислюємо всі графіки для аналізу менеджерів
+        self._compute_salesperson_age_success_chart()
+        self._compute_salesperson_orders_success_chart()
+        self._compute_salesperson_total_amount_success_chart()
+        self._compute_salesperson_success_amount_success_chart()
+        self._compute_salesperson_avg_amount_success_chart()
+        self._compute_salesperson_avg_success_amount_success_chart()
+        self._compute_salesperson_order_intensity_chart()
+        self._compute_salesperson_success_order_intensity_chart()
+        self._compute_salesperson_amount_intensity_chart()
+        self._compute_salesperson_success_amount_intensity_chart()
