@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Головне меню -->
+    <menuitem id="menu_data_collection_root"
+              name="Data Collection"
+              sequence="50"/>
+
+    <!-- Підменю для Data Collection -->
+    <menuitem id="menu_data_collection"
+              name="Data Collector"
+              parent="menu_data_collection_root"
+              action="action_customer_data_collector"
+              sequence="10"/>
+</odoo>

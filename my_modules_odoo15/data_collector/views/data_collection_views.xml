@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_data_collector_tree" model="ir.ui.view">
+        <field name="name">view.data.collector.tree</field>
+        <field name="model">data.collector</field>
+        <field name="arch" type="xml">
+            <tree string="Data Collectors">
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="date_range_display"/>
+                <field name="data_filename"/>
+                <field name="total_partners"/>
+                <field name="total_orders"/>
+                <field name="total_success_rate" widget="percentage"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_data_collector_form" model="ir.ui.view">
+        <field name="name">view.data.collector.form</field>
+        <field name="model">data.collector</field>
+        <field name="arch" type="xml">
+            <form string="Data Collector">
+                <header>
+                    <button name="action_collect_data"
+                            string="Collect Data"
+                            type="object"
+                            class="btn btn-primary"/>
+                     <button name="action_collect_extended_data"
+                            string="Collect Extended Data"
+                            type="object"
+                            class="btn btn-primary"/>
+                    <button name="action_compute_statistics"
+                            string="Compute Statistics"
+                            type="object"
+                            class="btn btn-success"/>
+                    <button name="action_create_charts"
+                            string="Create Charts"
+                            type="object"
+                            class="btn btn-info"/>
+                    <button name="action_visualize"
+                            string="Visualize It"
+                            type="object"
+                            class="btn btn-info"/>
+                    <button name="generate_analysis"
+                            string="Generate Analysis"
+                            type="object"
+                            class="btn btn-info"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="e.g. Monthly Data Collection"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Data Source">
+                            <field name="data_file" filename="data_filename" widget="binary" string="Upload CSV File"/>
+                            <field name="data_filename" invisible="1"/>
+                            <div colspan="2" class="text-muted" attrs="{'invisible': [('data_file', '!=', False)]}">
+                                Upload a CSV file or use the "Collect Data" button to gather data from the system.
+                            </div>
+                        </group>
+                        <group string="Extended Data Source">
+                            <field name="extended_data_file" filename="data_filename" widget="binary"
+                                   string="Upload CSV File"/>
+                            <field name="extended_data_filename" invisible="1"/>
+                            <div colspan="2" class="text-muted" attrs="{'invisible': [('data_file', '!=', False)]}">
+                                Upload a CSV file or use the "Collect Extended Data" button to gather data from the
+                                system.
+                            </div>
+                        </group>
+                    </group>
+
+                    <notebook attrs="{'invisible': [('data_file', '=', False)]}">
+                        <!-- General Statistics -->
+                        <page string="General Statistics" name="general_statistics">
+                            <group>
+                                <group string="Key Metrics">
+                                    <field name="date_range_display"/>
+                                    <field name="date_from"/>
+                                    <field name="date_to"/>
+                                    <field name="total_partners"/>
+                                    <field name="total_orders"/>
+                                    <field name="total_success_rate" widget="percentage"/>
+                                </group>
+                                <group string="Distribution">
+                                    <field name="orders_by_state"/>
+                                    <field name="partners_by_success_rate"/>
+                                </group>
+                            </group>
+                        </page>
+                        <!-- Time Analysis -->
+                        <page string="Часові характеристики">
+                             <field name="monthly_analysis_chart" widget="image"
+                                   options="{'preview_image': 'monthly_analysis_chart', 'size': [1000, 700]}"/>
+                            <field name="monthly_analysis_scatter_chart" widget="image"
+                                   options="{'preview_image': 'monthly_analysis_scatter_chart', 'size': [1000, 700]}"/>
+                            <field name="cumulative_monthly_analysis_chart" widget="image"
+                                   options="{'preview_image': 'cumulative_monthly_analysis_chart', 'size': [1000, 700]}"/>
+                            <field name="monthly_combined_chart" widget="image"
+                                   options="{'preview_image': 'monthly_combined_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                             <field name="monthly_success_rate_chart" widget="image"
+                                   options="{'preview_image': 'monthly_success_rate_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="cumulative_success_rate_chart" widget="image"
+                                   options="{'preview_image': 'cumulative_success_rate_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="time_distribution_graph" widget="image"
+                                   options="{'preview_image': 'time_distribution_graph', 'size': [1000, 600]}"/>
+                            <field name="weekly_heatmap_graph" widget="image"
+                                   options="{'preview_image': 'weekly_heatmap_graph', 'size': [1000, 500]}"/>
+                            <field name="weekly_success_heatmap_graph" widget="image"
+                                   options="{'preview_image': 'weekly_success_heatmap_graph', 'size': [1000, 500]}"/>
+                            <field name="seasonal_monthly_graph" widget="image"
+                                   options="{'preview_image': 'seasonal_monthly_graph', 'size': [1000, 500]}"/>
+                            <field name="seasonal_weekday_graph" widget="image"
+                                   options="{'preview_image': 'seasonal_weekday_graph', 'size': [800, 800]}"/>
+
+                        </page>
+
+                        <!-- Customer Analysis -->
+                        <page string="Аналіз клієнтів">
+                             <field name="partners_by_rate_chart" widget="image"
+                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [1000, 600]}"/>
+                            <field name="customer_history_graph" widget="image"
+                                   options="{'preview_image': 'customer_history_graph', 'size': [1000, 600]}"/>
+                            <field name="partner_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'partner_orders_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="customer_relationship_graph" widget="image"
+                                   options="{'preview_image': 'customer_relationship_graph', 'size': [1000, 600]}"/>
+                             <field name="partner_age_success_chart" widget="image"
+                                   options="{'preview_image': 'partner_age_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="relative_age_success_chart" widget="image"
+                                   options="{'preview_image': 'relative_age_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                        </page>
+
+                        <!-- Order Analysis -->
+                        <page string="Аналіз замовлень">
+                             <field name="orders_by_state_chart" widget="image"
+                                   options="{'preview_image': 'orders_by_state_chart', 'size': [1000, 600]}"/>
+                            <field name="amount_correlation_graph" widget="image"
+                                   options="{'preview_image': 'amount_correlation_graph', 'size': [1200, 800]}"/>
+                            <field name="amount_success_chart" widget="image"
+                                   options="{'preview_image': 'amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="avg_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'avg_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="product_lines_graph" widget="image"
+                                   options="{'preview_image': 'product_lines_graph', 'size': [1200, 800]}"/>
+                            <field name="payment_analysis_graph" widget="image"
+                                   options="{'preview_image': 'payment_analysis_graph', 'size': [1200, 800]}"/>
+                             <field name="payment_term_success_chart" widget="image"
+                                   options="{'preview_image': 'payment_term_success_chart', 'size': [1000, 1000]}"
+                                   nolabel="1"/>
+                            <field name="delivery_analysis_graph" widget="image"
+                                   options="{'preview_image': 'delivery_analysis_graph', 'size': [1200, 800]}"/>
+                        </page>
+
+                        <!-- Interaction Analysis -->
+                        <page string="Аналіз взаємодії">
+                            <field name="processing_duration_graph" widget="image"
+                                   options="{'preview_image': 'processing_duration_graph', 'size': [1000, 600]}"/>
+                            <field name="changes_impact_graph" widget="image"
+                                   options="{'preview_image': 'changes_impact_graph', 'size': [1200, 800]}"/>
+                            <field name="communication_analysis_graph" widget="image"
+                                   options="{'preview_image': 'communication_analysis_graph', 'size': [1200, 800]}"/>
+                        </page>
+
+                        <!-- Sales Performance -->
+                        <page string="Аналіз продажів">
+                            <field name="salesperson_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="manager_performance_graph" widget="image"
+                                   options="{'preview_image': 'manager_performance_graph', 'size': [1200, 800]}"/>
+                            <field name="discount_analysis_graph" widget="image"
+                                   options="{'preview_image': 'discount_analysis_graph', 'size': [1000, 1000]}"/>
+                        </page>
+
+                        <!-- Intensity Success Analysis -->
+                        <page string="Intensity Analysis" name="intensity_analysis">
+                            <field name="order_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'order_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="success_order_intensity_chart" widget="image"
+                                   options="{'preview_image': 'success_order_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="amount_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'amount_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="success_amount_intensity_chart" widget="image"
+                                   options="{'preview_image': 'success_amount_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+
+                            <field name="monthly_volume_success_chart" widget="image"
+                                   options="{'preview_image': 'monthly_volume_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="monthly_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'monthly_orders_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+
+                        </page>
+                        <!-- Salesperson Analysis -->
+                        <page string="Salesperson Analysis" name="salesperson_analysis">
+                            <button name="action_compute_salesperson_charts"
+                                    string="Compute and Draw"
+                                    type="object"
+                                    class="oe_highlight"/>
+                            <field name="salesperson_age_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_age_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_orders_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_total_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_total_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_avg_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_avg_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_avg_success_amount_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_avg_success_amount_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_order_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_order_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_order_intensity_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_order_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_amount_intensity_success_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_amount_intensity_success_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="salesperson_success_amount_intensity_chart" widget="image"
+                                   options="{'preview_image': 'salesperson_success_amount_intensity_chart', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                        </page>
+
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_customer_data_collector" model="ir.actions.act_window">
+        <field name="name">Data Collector</field>
+        <field name="res_model">data.collector</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+</odoo>
