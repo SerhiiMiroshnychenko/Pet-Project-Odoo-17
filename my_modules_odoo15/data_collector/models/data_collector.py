@@ -76,6 +76,10 @@ class DataCollector(models.Model):
     customer_relationship_graph = fields.Binary('Аналіз терміну співпраці', attachment=True)
     customer_relationship_filename = fields.Char('Filename relationship')
 
+    customer_relationship_distribution_graph = fields.Binary('Розподіл замовлень за тривалістю співпраці',
+                                                             attachment=True)
+    customer_relationship_distribution_filename = fields.Char('Filename customer relationship distribution')
+
     # Order Parameters Graphs
     amount_correlation_graph = fields.Binary('Кореляція суми замовлення', attachment=True)
     amount_correlation_filename = fields.Char('Filename amount correlation')
@@ -89,12 +93,27 @@ class DataCollector(models.Model):
     delivery_analysis_graph = fields.Binary('Аналіз умов доставки', attachment=True)
     delivery_analysis_filename = fields.Char('Filename delivery')
 
+    changes_messages_correlation_graph = fields.Binary('Залежність змін від повідомлень', attachment=True)
+    changes_messages_correlation_filename = fields.Char('Filename changes messages correlation')
+
     # Interaction Analysis Graphs
     changes_impact_graph = fields.Binary('Вплив змін на успішність', attachment=True)
     changes_impact_filename = fields.Char('Filename changes')
 
+    customer_avg_changes_graph = fields.Binary('Аналіз клієнтів за середньою кількістю змін', attachment=True)
+    customer_avg_changes_filename = fields.Char('Filename customer avg changes')
+
     communication_analysis_graph = fields.Binary('Аналіз комунікацій', attachment=True)
     communication_analysis_filename = fields.Char('Filename communication')
+
+    customer_avg_messages_graph = fields.Binary('Аналіз клієнтів за середньою кількістю повідомлень', attachment=True)
+    customer_avg_messages_filename = fields.Char('Filename customer avg messages')
+
+    customer_amount_success_distribution_graph = fields.Binary('Розподіл успішності за сумою замовлення',
+                                                               attachment=True)
+    customer_amount_success_distribution_filename = fields.Char('Filename customer amount success distribution')
+    customer_amount_success_distribution_plot = fields.Binary('Розподіл успішності за сумою замовлення',
+                                                               attachment=True)
 
     # Sales Performance Graphs
     manager_performance_graph = fields.Binary('Ефективність менеджерів', attachment=True)
@@ -2061,14 +2080,28 @@ class DataCollector(models.Model):
             self.communication_analysis_graph = communication_analysis_binary
             self.communication_analysis_filename = communication_analysis_filename
 
+        customer_avg_messages_result = self.analyze_customer_avg_messages(df)
+        if customer_avg_messages_result:
+            self.customer_avg_messages_graph, self.customer_avg_messages_filename = customer_avg_messages_result
+
+        customer_avg_changes_result = self.analyze_customer_avg_changes(df)
+        if customer_avg_messages_result:
+            self.customer_avg_changes_graph, self.customer_avg_changes_filename  = customer_avg_changes_result
+
         manager_performance_binary, manager_performance_filename = self.analyze_manager_performance(df)
         if manager_performance_binary:
             self.manager_performance_graph = manager_performance_binary
             self.manager_performance_filename = manager_performance_filename
 
+        customer_relationship_distribution_binary, customer_relationship_distribution_filename = self.analyze_customer_relationship_distribution(df)
+        if customer_relationship_distribution_binary:
+            self.customer_relationship_distribution_graph = customer_relationship_distribution_binary
+            self.customer_relationship_distribution_filename = customer_relationship_distribution_filename
 
-
-
+        customer_amount_success_distribution = self.analyze_customer_amount_success_distribution(df)
+        if customer_amount_success_distribution:
+            self.customer_amount_success_distribution_graph = customer_amount_success_distribution
+        self.changes_messages_correlation_graph, self.changes_messages_correlation_filename = self.analyze_changes_messages_correlation(df)
 
     def action_collect_data(self):
         """Collect data from database and save to CSV"""
@@ -6145,3 +6178,725 @@ class DataCollector(models.Model):
         self._compute_salesperson_success_order_intensity_chart()
         self._compute_salesperson_amount_intensity_chart()
         self._compute_salesperson_success_amount_intensity_chart()
+
+    def analyze_customer_avg_messages(self, df):
+        """Аналіз клієнтів за середньою кількістю повідомлень в замовленнях"""
+        fig, ax1 = plt.subplots(figsize=(12, 6))
+
+        # Конвертуємо messages_count в числовий формат
+        df['messages_count'] = pd.to_numeric(df['messages_count'], errors='coerce').fillna(0)
+
+        # Рахуємо середню кількість повідомлень для кожного клієнта
+        customer_stats = df.groupby('customer_id').agg({
+            'messages_count': 'mean',  # середня кількість повідомлень
+            'order_id': 'count',  # кількість замовлень
+            'state': lambda x: (x == 'sale').mean()  # відсоток успішності
+        }).reset_index()
+
+        # Замінюємо NaN на 0
+        customer_stats = customer_stats.fillna(0)
+
+        # Функція категоризації
+        def get_message_category(avg_messages):
+            if pd.isna(avg_messages) or avg_messages == 0:
+                return 'Без повідомлень'
+            elif 0 < avg_messages <= 3:
+                return '1-3 повідомлення'
+            elif 3 < avg_messages <= 7:
+                return '4-7 повідомлень'
+            elif 7 < avg_messages <= 15:
+                return '8-15 повідомлень'
+            else:
+                return '15+ повідомлень'
+
+        # Визначаємо порядок категорій
+        category_order = ['Без повідомлень', '1-3 повідомлення', '4-7 повідомлень',
+                          '8-15 повідомлень', '15+ повідомлень']
+
+        # Категоризуємо клієнтів
+        customer_stats['message_category'] = customer_stats['messages_count'].apply(get_message_category)
+
+        # Рахуємо статистику по категоріях
+        category_stats = customer_stats.groupby('message_category').agg({
+            'customer_id': 'count',  # кількість клієнтів
+            'order_id': 'sum',  # кількість замовлень
+            'state': 'mean'  # середній відсоток успішності
+        }).reindex(category_order)
+
+        # Замінюємо NaN на 0
+        category_stats = category_stats.fillna(0)
+
+        # Створюємо позиції для стовпчиків
+        x = np.arange(len(category_order))
+        width = 0.35
+
+        # Створюємо стовпчики для клієнтів
+        bars1 = ax1.bar(x - width / 2, category_stats['customer_id'], width,
+                        color='#1f77b4', label='Кількість клієнтів')
+        ax1.set_ylabel('Кількість клієнтів', color='#1f77b4')
+        ax1.tick_params(axis='y', labelcolor='#1f77b4')
+
+        # Створюємо другу вісь для замовлень
+        ax3 = ax1.twinx()
+        ax3.spines['right'].set_position(('outward', 60))
+        bars2 = ax3.bar(x + width / 2, category_stats['order_id'], width,
+                        color='skyblue', label='Кількість замовлень')
+        ax3.set_ylabel('Кількість замовлень', color='blue')
+        ax3.tick_params(axis='y', labelcolor='blue')
+
+        # Створюємо третю вісь для відсотка успішності
+        ax2 = ax1.twinx()
+        success_line = ax2.plot(x, category_stats['state'] * 100, 'o-',
+                                color='gold', linewidth=2, markersize=8,
+                                label='Відсоток успішності')
+        ax2.set_ylabel('Відсоток успішності (%)')
+        ax2.set_ylim(0, 100)
+
+        # Налаштовуємо мітки осі X
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(category_order, rotation=45, ha='right')
+
+        # Додаємо підписи значень для клієнтів
+        for i, v in enumerate(category_stats['customer_id']):
+            if not pd.isna(v):  # перевіряємо на NaN
+                ax1.text(x[i] - width / 2, v, f'{int(v):,}',
+                         ha='center', va='bottom', color='#1f77b4')
+
+        # Додаємо підписи значень для замовлень
+        for i, v in enumerate(category_stats['order_id']):
+            if not pd.isna(v):  # перевіряємо на NaN
+                ax3.text(x[i] + width / 2, v, f'{int(v):,}',
+                         ha='center', va='bottom', color='blue')
+
+        # Додаємо підписи для відсотка успішності
+        for i, v in enumerate(category_stats['state']):
+            if not pd.isna(v):  # перевіряємо на NaN
+                ax2.text(x[i], v * 100 + 1, f'{v:.1%}',
+                         ha='center', va='bottom', color='black')
+
+        # Налаштовуємо заголовок та легенду
+        plt.title('Розподіл клієнтів та замовлень за середньою кількістю повідомлень')
+
+        # Збільшуємо відступи
+        plt.subplots_adjust(bottom=0.15, right=0.85)
+
+        return self.save_plot_to_binary(fig, 'customer_avg_messages.png')
+
+    def analyze_customer_avg_changes(self, df):
+        """Analysis of customers by average number of changes in their orders"""
+        fig, ax1 = plt.subplots(figsize=(15, 8))
+
+        # Переконуємося, що changes_count є числовим
+        df['changes_count'] = pd.to_numeric(df['changes_count'], errors='coerce').fillna(0)
+
+        # Додамо додатковий друк для діагностики
+        print("Unique states:", df['state'].unique())
+        print("Changes count dtype:", df['changes_count'].dtype)
+
+        # Розрахунок середньої кількості змін для кожного клієнта
+        customer_changes = df.groupby('customer_id').agg({
+            'changes_count': 'mean',
+            'state': lambda x: (x == 'sale').astype(float).mean()  # Явно конвертуємо у float
+        }).reset_index()
+
+        # Створення категорій на основі середньої кількості змін
+        def get_changes_category(changes):
+            if changes == 0:
+                return 'Без змін'
+            elif changes <= 2:
+                return '1-2 зміни'
+            elif changes <= 5:
+                return '3-5 змін'
+            elif changes <= 10:
+                return '6-10 змін'
+            else:
+                return '10+ змін'
+
+        customer_changes['category'] = customer_changes['changes_count'].apply(get_changes_category)
+
+        # Агрегація даних за категоріями
+        category_stats = customer_changes.groupby('category').agg({
+            'customer_id': 'count',
+            'changes_count': 'mean',
+            'state': 'mean'
+        }).reset_index()
+
+        # Сортування категорій у правильному порядку
+        category_order = ['Без змін', '1-2 зміни', '3-5 змін', '6-10 змін', '10+ змін']
+        category_stats['category'] = pd.Categorical(category_stats['category'],
+                                                    categories=category_order,
+                                                    ordered=True)
+        category_stats = category_stats.sort_values('category')
+
+        # Створення графіку
+        x = np.arange(len(category_stats))
+        bars = ax1.bar(x, category_stats['customer_id'], color='#1f77b4')
+        ax1.set_xlabel('Категорії за кількістю змін')
+        ax1.set_ylabel('Кількість клієнтів')
+
+        # Додаємо другу вісь для відсотків
+        ax2 = ax1.twinx()
+        success_line = ax2.plot(x, category_stats['state'] * 100, 'o-',
+                                color='gold', linewidth=2, markersize=8)
+        ax2.set_ylabel('Відсоток успішності (%)')
+        ax2.set_ylim(0, 100)
+
+        # Налаштовуємо мітки осі X
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(category_stats['category'], rotation=45)
+
+        # Додаємо підписи значень
+        total_customers = category_stats['customer_id'].sum()
+        for i, v in enumerate(category_stats['customer_id']):
+            percentage = v / total_customers * 100
+            ax1.text(i, v, f'{v}\n({percentage:.1f}%)', ha='center', va='bottom')
+
+        for i, v in enumerate(category_stats['state']):
+            ax2.text(i, v * 100 + 2, f'{v:.1%}', ha='center', va='bottom', color='black')
+
+        # Додаємо середню кількість змін для кожної категорії
+        for i, avg_changes in enumerate(category_stats['changes_count']):
+            ax1.text(i, 0, f'~{avg_changes:.1f}', ha='center', va='top')
+
+        # Додаємо легенду
+        custom_lines = [bars.patches[0], Line2D([0], [0], color='gold', marker='o', linewidth=2, markersize=8)]
+        ax1.legend(custom_lines, ['Кількість клієнтів', 'Відсоток успішності'], loc='upper right')
+
+        plt.title('Аналіз клієнтів за середньою кількістю змін в замовленнях')
+        plt.tight_layout()
+
+        return self.save_plot_to_binary(fig, 'customer_avg_changes.png')
+
+    def analyze_changes_messages_correlation(self, df):
+        """Analysis of correlation between number of changes and messages in orders"""
+        fig, ax = plt.subplots(figsize=(15, 8))
+
+        # Переконуємося, що дані числові
+        df['changes_count'] = pd.to_numeric(df['changes_count'], errors='coerce').fillna(0)
+        df['messages_count'] = pd.to_numeric(df['messages_count'], errors='coerce').fillna(0)
+
+        # Створюємо копію даних для аналізу
+        analysis_df = df[['changes_count', 'messages_count', 'state']].copy()
+
+        # Створюємо 10 груп з приблизно однаковою кількістю замовлень
+        analysis_df['message_group'] = pd.qcut(analysis_df['messages_count'],
+                                               q=10,
+                                               duplicates='drop')
+
+        # Створюємо зрозумілі лейбли для груп
+        def format_range(interval):
+            left = int(interval.left)
+            right = int(interval.right)
+            return f'{left}-{right}'
+
+        # Отримуємо межі інтервалів та створюємо нові лейбли
+        intervals = analysis_df['message_group'].cat.categories
+        labels = [format_range(interval) for interval in intervals]
+
+        # Застосовуємо нові лейбли
+        analysis_df['message_group'] = pd.qcut(analysis_df['messages_count'],
+                                               q=10,
+                                               labels=labels,
+                                               duplicates='drop')
+
+        # Рахуємо статистику для кожної групи
+        group_stats = analysis_df.groupby('message_group').agg({
+            'messages_count': ['mean', 'count'],
+            'changes_count': 'mean',
+            'state': lambda x: (x == 'sale').mean()
+        }).reset_index()
+
+        # Спрощуємо мультиіндекс колонок
+        group_stats.columns = ['group', 'avg_messages', 'orders_count', 'avg_changes', 'success_rate']
+
+        # Додамо діагностичний друк статистики груп
+        print("\nGroup statistics:")
+        print(group_stats)
+
+        # Створення графіку з двома осями
+        x = np.arange(len(group_stats))
+
+        # Основні стовпці - середня кількість змін
+        bars = ax.bar(x, group_stats['avg_changes'], color='#1f77b4', alpha=0.7)
+        ax.set_xlabel('Групи замовлень за кількістю повідомлень')
+        ax.set_ylabel('Середня кількість змін', color='#1f77b4')
+        ax.tick_params(axis='y', labelcolor='#1f77b4')
+
+        # Додаємо другу вісь для успішності
+        ax2 = ax.twinx()
+        success_line = ax2.plot(x, group_stats['success_rate'] * 100, 'o-',
+                                color='gold', linewidth=2, markersize=8)
+        ax2.set_ylabel('Відсоток успішності (%)', color='gold')
+        ax2.tick_params(axis='y', labelcolor='gold')
+        ax2.set_ylim(0, 100)
+
+        # Налаштовуємо мітки осі X
+        ax.set_xticks(x)
+        ax.set_xticklabels(group_stats['group'], rotation=45)
+
+        # Додаємо підписи значень
+        for i, (changes, messages, count) in enumerate(zip(group_stats['avg_changes'],
+                                                           group_stats['avg_messages'],
+                                                           group_stats['orders_count'])):
+            # Підпис середньої кількості змін
+            ax.text(i, changes, f'~{changes:.1f}',
+                    ha='center', va='bottom', color='#1f77b4')
+            # Підпис кількості замовлень
+            ax.text(i, 0, f'n={count}',
+                    ha='center', va='top', color='gray')
+
+        # Додаємо підписи успішності
+        for i, success in enumerate(group_stats['success_rate']):
+            ax2.text(i, success * 100 + 2, f'{success:.1%}',
+                     ha='center', va='bottom', color='black')
+
+        # Додаємо легенду
+        custom_lines = [bars.patches[0], Line2D([0], [0], color='gold', marker='o', linewidth=2, markersize=8)]
+        ax.legend(custom_lines, ['Середня кількість змін', 'Відсоток успішності'], loc='upper left')
+
+        plt.title('Залежність кількості змін від кількості повідомлень в замовленнях')
+        plt.tight_layout()
+
+        return self.save_plot_to_binary(fig, 'changes_messages_correlation.png')
+
+    def analyze_customer_relationship_distribution(self, df):
+        """Analysis of orders distribution by customer relationship duration"""
+        fig, ax = plt.subplots(figsize=(15, 8))
+
+        # Конвертуємо дні в місяці та забезпечуємо числовий формат
+        df['relationship_months'] = pd.to_numeric(df['customer_relationship_days'],
+                                                  errors='coerce').fillna(0) / 30
+
+        # Отримуємо останнє замовлення для кожного клієнта
+        latest_orders = df.sort_values('date_order').groupby('customer_id').last()
+
+        # Додамо діагностичний друк
+        print("Unique relationship months:", sorted(latest_orders['relationship_months'].unique()))
+
+        # Створюємо власні межі для груп на основі процентилів
+        percentiles = np.percentile(latest_orders['relationship_months'].unique(),
+                                    np.linspace(0, 100, 11))  # 11 точок для 10 інтервалів
+
+        # Переконуємося, що межі унікальні
+        percentiles = np.unique(percentiles)
+        if len(percentiles) < 11:
+            # Якщо у нас менше унікальних значень, додаємо невеликі відступи
+            missing = 11 - len(percentiles)
+            step = (percentiles[-1] - percentiles[0]) / (10 * 100)
+            for i in range(missing):
+                percentiles = np.insert(percentiles, -1, percentiles[-1] + step)
+
+        def format_duration(months):
+            months = int(months)
+            if months < 12:
+                return f"{months}м"
+            years = months // 12
+            months = months % 12
+            if months == 0:
+                return f"{years}р"
+            return f"{years}р {months}м"
+
+        # Створюємо групи з унікальними межами
+        labels = [f"{format_duration(left)}-{format_duration(right)}"
+                  for left, right in zip(percentiles[:-1], percentiles[1:])]
+
+        latest_orders['relationship_group'] = pd.cut(latest_orders['relationship_months'],
+                                                     bins=percentiles,
+                                                     labels=labels,
+                                                     include_lowest=True)
+
+        # Додаємо групи до основного датафрейму
+        customer_groups = latest_orders[['relationship_group']].copy()
+        df = df.merge(customer_groups,
+                      left_on='customer_id',
+                      right_index=True,
+                      how='left')
+
+        # Рахуємо статистику для кожної групи
+        group_stats = df.groupby('relationship_group').agg({
+            'customer_id': [
+                ('customers', 'nunique'),  # кількість унікальних клієнтів
+                ('orders', 'count')  # кількість замовлень
+            ],
+            'state': lambda x: (x == 'sale').mean()  # успішність
+        }).reset_index()
+
+        # Спрощуємо мультиіндекс колонок
+        group_stats.columns = ['group', 'customers', 'orders', 'success_rate']
+
+        # Додаємо середню кількість замовлень на клієнта
+        group_stats['avg_orders'] = group_stats['orders'] / group_stats['customers']
+
+        # Створення графіку з двома осями
+        x = np.arange(len(group_stats))
+
+        # Основні стовпці - середня кількість замовлень на клієнта
+        bars = ax.bar(x, group_stats['avg_orders'], color='#1f77b4', alpha=0.7)
+        ax.set_xlabel('Тривалість співпраці з клієнтом')
+        ax.set_ylabel('Середня кількість замовлень на клієнта', color='#1f77b4')
+        ax.tick_params(axis='y', labelcolor='#1f77b4')
+
+        # Додаємо другу вісь для успішності
+        ax2 = ax.twinx()
+        success_line = ax2.plot(x, group_stats['success_rate'] * 100, 'o-',
+                                color='gold', linewidth=2, markersize=8)
+        ax2.set_ylabel('Відсоток успішності (%)', color='gold')
+        ax2.tick_params(axis='y', labelcolor='gold')
+        ax2.set_ylim(0, 100)
+
+        # Налаштовуємо мітки осі X
+        ax.set_xticks(x)
+        ax.set_xticklabels(group_stats['group'], rotation=45)
+
+        # Додаємо підписи значень
+        for i, (avg_orders, customers, orders) in enumerate(zip(group_stats['avg_orders'],
+                                                                group_stats['customers'],
+                                                                group_stats['orders'])):
+            # Підпис середньої кількості замовлень
+            ax.text(i, avg_orders, f'~{avg_orders:.1f}',
+                    ha='center', va='bottom', color='#1f77b4')
+            # Підпис кількості клієнтів та замовлень
+            ax.text(i, 0, f'n={customers}\n({orders})',
+                    ha='center', va='top', color='gray')
+
+        # Додаємо підписи успішності
+        for i, success in enumerate(group_stats['success_rate']):
+            ax2.text(i, success * 100 + 2, f'{success:.1%}',
+                     ha='center', va='bottom', color='black')
+
+        # Додаємо легенду
+        custom_lines = [bars.patches[0], Line2D([0], [0], color='gold', marker='o', linewidth=2, markersize=8)]
+        ax.legend(custom_lines, ['Середня кількість замовлень', 'Відсоток успішності'], loc='upper left')
+
+        plt.title('Залежність кількості замовлень від тривалості співпраці з клієнтом')
+        plt.tight_layout()
+
+        return self.save_plot_to_binary(fig, 'customer_relationship_distribution.png')
+
+        # Налаштовуємо мітки осі X
+        ax.set_xticks(x)
+        ax.set_xticklabels(group_stats['group'], rotation=45)
+
+        # Додаємо підписи значень
+        for i, (avg_orders, customers, orders) in enumerate(zip(group_stats['avg_orders'],
+                                                                group_stats['customers'],
+                                                                group_stats['orders'])):
+            # Підпис середньої кількості замовлень
+            ax.text(i, avg_orders, f'~{avg_orders:.1f}',
+                    ha='center', va='bottom', color='#1f77b4')
+            # Підпис кількості клієнтів та замовлень
+            ax.text(i, 0, f'n={customers}\n({orders})',
+                    ha='center', va='top', color='gray')
+
+        # Додаємо підписи успішності
+        for i, success in enumerate(group_stats['success_rate']):
+            ax2.text(i, success * 100 + 2, f'{success:.1%}',
+                     ha='center', va='bottom', color='black')
+
+        # Додаємо легенду
+        custom_lines = [bars.patches[0], Line2D([0], [0], color='gold', marker='o', linewidth=2, markersize=8)]
+        ax.legend(custom_lines, ['Середня кількість замовлень', 'Відсоток успішності'], loc='upper left')
+
+        plt.title('Залежність кількості замовлень від тривалості співпраці з клієнтом')
+        plt.tight_layout()
+
+        return self.save_plot_to_binary(fig, 'customer_relationship_distribution.png')
+
+    def analyze_customer_amount_success_distribution(self, df):
+        """Analysis of success rate distribution by average order amount"""
+        try:
+            print("\n=== Starting analysis ===")
+
+            # Закриваємо всі відкриті фігури перед створенням нової
+            plt.close('all')
+
+            fig, ax = plt.subplots(figsize=(15, 8))
+
+            # Конвертуємо суму в числовий формат
+            df['total_amount'] = pd.to_numeric(df['total_amount'], errors='coerce')
+
+            # Відфільтруємо від'ємні значення
+            df = df[df['total_amount'] >= 0]
+
+            # Розраховуємо середню суму замовлень для кожного клієнта
+            customer_stats = df.groupby('customer_id').agg({
+                'total_amount': 'mean',
+                'state': lambda x: (x == 'sale').mean() * 100  # відсоток успішності
+            }).reset_index()
+
+            # Видаляємо викиди (суми більше 99-го перцентиля)
+            amount_99th = np.percentile(customer_stats['total_amount'], 99)
+            customer_stats = customer_stats[customer_stats['total_amount'] <= amount_99th]
+
+            # Створюємо власні межі для груп
+            amount_bins = [
+                0,  # мінімум
+                100,  # до 100 грн
+                500,  # до 500 грн
+                1000,  # до 1000 грн
+                2000,  # до 2000 грн
+                5000,  # до 5000 грн
+                10000,  # до 10000 грн
+                20000,  # до 20000 грн
+                float('inf')  # решта
+            ]
+
+            # Створюємо мітки для груп
+            labels = [
+                '0-100',
+                '100-500',
+                '500-1K',
+                '1K-2K',
+                '2K-5K',
+                '5K-10K',
+                '10K-20K',
+                '20K+'
+            ]
+
+            # Застосовуємо групування
+            customer_stats['amount_group'] = pd.cut(
+                customer_stats['total_amount'],
+                bins=amount_bins,
+                labels=labels,
+                include_lowest=True
+            )
+
+            # Рахуємо статистику для кожної групи
+            group_stats = customer_stats.groupby('amount_group').agg({
+                'customer_id': 'count',  # кількість клієнтів
+                'state': 'mean',  # середній відсоток успішності
+                'total_amount': 'mean'  # середня сума замовлення
+            }).reset_index()
+
+            # Створення графіку з двома осями
+            x = np.arange(len(group_stats))
+
+            # Основні стовпці - середня сума замовлення
+            bars = ax.bar(x, group_stats['total_amount'], color='#1f77b4', alpha=0.7)
+            ax.set_xlabel('Середня сума замовлення, грн')
+            ax.set_ylabel('Середня сума замовлення, грн', color='#1f77b4')
+            ax.tick_params(axis='y', labelcolor='#1f77b4')
+
+            # Додаємо другу вісь для успішності
+            ax2 = ax.twinx()
+            success_line = ax2.plot(x, group_stats['state'], 'o-',
+                                    color='gold', linewidth=2, markersize=8)
+            ax2.set_ylabel('Середній відсоток успішності (%)', color='gold')
+            ax2.tick_params(axis='y', labelcolor='gold')
+            ax2.set_ylim(0, 100)
+
+            # Налаштовуємо мітки осі X
+            ax.set_xticks(x)
+            ax.set_xticklabels(group_stats['amount_group'], rotation=45)
+
+            # Додаємо підписи значень
+            for i, (amount, customers) in enumerate(zip(group_stats['total_amount'],
+                                                        group_stats['customer_id'])):
+                # Підпис середньої суми
+                if amount >= 1000:
+                    amount_text = f'~{amount / 1000:.0f}K'
+                else:
+                    amount_text = f'~{amount:.0f}'
+                ax.text(i, amount, amount_text,
+                        ha='center', va='bottom', color='#1f77b4')
+                # Підпис кількості клієнтів
+                ax.text(i, 0, f'n={customers}',
+                        ha='center', va='top', color='gray')
+
+            # Додаємо підписи успішності
+            for i, success in enumerate(group_stats['state']):
+                ax2.text(i, success + 2, f'{success:.1f}%',
+                         ha='center', va='bottom', color='black')
+
+            # Додаємо легенду
+            custom_lines = [bars.patches[0], Line2D([0], [0], color='gold', marker='o', linewidth=2, markersize=8)]
+            ax.legend(custom_lines, ['Середня сума замовлення', 'Середній % успішності'], loc='upper left')
+
+            plt.title('Залежність успішності від середньої суми замовлення клієнта')
+            plt.tight_layout()
+
+            # Зберігаємо графік
+            print("\n8. Saving plot")
+            # Зберігаємо графік
+            print("\n8. Saving plot")
+            image_data = self.save_plot_to_binary(fig, 'customer_amount_success_distribution.png')[0]  # беремо перший елемент кортежу
+            print("Image data type:", type(image_data))
+            print("Image data size:", len(image_data) if image_data else "None")
+            print("Image data type:", type(image_data))
+            print("Image data size:", len(image_data) if image_data else "None")
+
+            print("\n9. Closing figure")
+            plt.close(fig)
+
+            print("\n10. Returning data")
+            return image_data
+
+        except Exception as e:
+            print("\n=== Error occurred ===")
+            print("Error type:", type(e))
+            print("Error message:", str(e))
+            import traceback
+            print("\nFull traceback:")
+            print(traceback.format_exc())
+            plt.close('all')
+            raise
+
+    def create_customer_amount_success_distribution_plot(self):
+        """Analysis of success rate distribution by average order amount"""
+        # Отримання даних
+
+        print("\n=== STARTING DATA PROCESSING ===")
+
+        data = self._read_csv_extended_data()
+        df = pd.DataFrame(data)
+        print(f"DF: {df}")
+
+        # Перевірка на коректність даних у колонці processing_time_hours
+        df['processing_time_hours'] = pd.to_numeric(df['processing_time_hours'], errors='coerce')
+
+        # Виведення некоректних даних
+        invalid_data = df[df['processing_time_hours'].isna()]
+        if not invalid_data.empty:
+            print("Некоректні дані в колонці 'processing_time_hours':")
+            print(invalid_data[['order_id', 'processing_time_hours']].to_string(index=False))
+
+        # Перевірка та конвертація даних у колонці discount_total
+        df['discount_total'] = pd.to_numeric(df['discount_total'], errors='coerce')
+
+        # Виведення некоректних даних
+        invalid_data = df[df['discount_total'].isna()]
+        if not invalid_data.empty:
+            print("Некоректні дані в колонці 'discount_total':")
+            print(invalid_data[['order_id', 'discount_total']].to_string(index=False))
+
+        # Заміна некоректних значень на 0
+        df['discount_total'] = df['discount_total'].fillna(0)
+
+        # Збереження базової статистики
+        self.total_orders = len(df)
+        df['is_successful'] = df['state'].apply(lambda x: 1 if x == 'sale' else 0)
+        self.success_rate = (df['is_successful'].mean() * 100)
+        df['create_date'] = pd.to_datetime(df['create_date'])
+        df['date_order'] = pd.to_datetime(df['date_order'])
+        df['avg_response_time_days'] = abs((df['date_order'] - df['create_date']).dt.total_seconds() / (3600 * 24))
+        self.avg_response_time = df['avg_response_time_days'].mean()
+        self.avg_processing_time = df['processing_time_hours'].mean()
+
+        print("\n=== STARTING PLOT CREATION ===")
+        # Додаємо діагностичний друк
+        print("Available columns:", df.columns.tolist())
+
+        # Закриваємо всі відкриті фігури перед створенням нової
+        plt.close('all')
+
+        fig, ax = plt.subplots(figsize=(15, 8))
+
+        # Конвертуємо суму в числовий формат
+        df['total_amount'] = pd.to_numeric(df['total_amount'], errors='coerce').fillna(0)
+
+        # Розраховуємо середню суму замовлень для кожного клієнта
+        customer_stats = df.groupby('customer_id').agg({
+            'total_amount': 'mean',
+            'state': lambda x: (x == 'sale').mean() * 100  # відсоток успішності
+        }).reset_index()
+
+        # Створюємо 10 груп з приблизно однаковою кількістю клієнтів
+        customer_stats['amount_group'] = pd.qcut(customer_stats['total_amount'],
+                                                 q=20,
+                                                 duplicates='drop')
+
+        # Форматуємо мітки груп
+        def format_amount(interval):
+            left = int(interval.left)
+            right = int(interval.right)
+
+            def format_number(num):
+                if num >= 1000000:
+                    return f"{num / 1000000:.1f}M"
+                elif num >= 1000:
+                    return f"{num / 1000:.0f}K"
+                return str(int(num))
+
+            return f'{format_number(left)}-{format_number(right)}'
+
+        # Отримуємо межі інтервалів та створюємо нові лейбли
+        intervals = customer_stats['amount_group'].cat.categories
+        labels = [format_amount(interval) for interval in intervals]
+
+        # Застосовуємо нові лейбли
+        customer_stats['amount_group'] = pd.qcut(customer_stats['total_amount'],
+                                                 q=20,
+                                                 labels=labels,
+                                                 duplicates='drop')
+
+        # Рахуємо статистику для кожної групи
+        group_stats = customer_stats.groupby('amount_group').agg({
+            'customer_id': 'count',  # кількість клієнтів
+            'state': 'mean',  # середній відсоток успішності
+            'total_amount': 'mean'  # середня сума замовлення
+        }).reset_index()
+
+        # Створення графіку з двома осями
+        x = np.arange(len(group_stats))
+
+        # Основні стовпці - середня сума замовлення
+        bars = ax.bar(x, group_stats['total_amount'], color='#1f77b4', alpha=0.7)
+        ax.set_xlabel('Середня сума замовлення, грн')
+        ax.set_ylabel('Середня сума замовлення, грн', color='#1f77b4')
+        ax.tick_params(axis='y', labelcolor='#1f77b4')
+
+        # Додаємо другу вісь для успішності
+        ax2 = ax.twinx()
+        success_line = ax2.plot(x, group_stats['state'], 'o-',
+                                color='gold', linewidth=2, markersize=8)
+        ax2.set_ylabel('Середній відсоток успішності (%)', color='gold')
+        ax2.tick_params(axis='y', labelcolor='gold')
+        ax2.set_ylim(0, 100)
+
+        # Налаштовуємо мітки осі X
+        ax.set_xticks(x)
+        ax.set_xticklabels(group_stats['amount_group'], rotation=45)
+
+        # Додаємо підписи значень
+        for i, (amount, customers) in enumerate(zip(group_stats['total_amount'],
+                                                    group_stats['customer_id'])):
+            # Підпис середньої суми
+            ax.text(i, amount, f'~{amount / 1000:.0f}K',
+                    ha='center', va='bottom', color='#1f77b4')
+            # Підпис кількості клієнтів
+            ax.text(i, 0, f'n={customers}',
+                    ha='center', va='top', color='gray')
+
+        # Додаємо підписи успішності
+        for i, success in enumerate(group_stats['state']):
+            ax2.text(i, success + 2, f'{success:.1f}%',
+                     ha='center', va='bottom', color='black')
+
+        # Додаємо легенду
+        custom_lines = [bars.patches[0], Line2D([0], [0], color='gold', marker='o', linewidth=2, markersize=8)]
+        ax.legend(custom_lines, ['Середня сума замовлення', 'Середній % успішності'], loc='upper left')
+
+        plt.title('Залежність успішності від середньої суми замовлення клієнта')
+        plt.tight_layout()
+
+        buffer = BytesIO()
+        print("\n=== Saving plot to buffer ===")
+        plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight')
+        print(f"Buffer position after save: {buffer.tell()}")
+        buffer.seek(0)
+        print(f"Buffer position after seek: {buffer.tell()}")
+
+        binary_data = buffer.getvalue()
+        print(f"\n=== Binary data ===")
+        print(f"Binary data type: {type(binary_data)}")
+        print(f"Binary data length: {len(binary_data)}")
+
+        result = base64.b64encode(binary_data)
+        print(f"\n=== Base64 result ===")
+        print(f"Result type: {type(result)}")
+        print(f"Result length: {len(result)}")
+
+        self.customer_amount_success_distribution_plot = result
+        print(f"\n=== Field value ===")
+        print(f"Field value type: {type(self.customer_amount_success_distribution_plot)}")
+        print(f"Field value length: {len(self.customer_amount_success_distribution_plot)}")

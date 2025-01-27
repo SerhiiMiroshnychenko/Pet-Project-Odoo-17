@@ -27,7 +27,7 @@
                             string="Collect Data"
                             type="object"
                             class="btn btn-primary"/>
-                     <button name="action_collect_extended_data"
+                    <button name="action_collect_extended_data"
                             string="Collect Extended Data"
                             type="object"
                             class="btn btn-primary"/>
@@ -93,7 +93,7 @@
                         </page>
                         <!-- Time Analysis -->
                         <page string="Часові характеристики">
-                             <field name="monthly_analysis_chart" widget="image"
+                            <field name="monthly_analysis_chart" widget="image"
                                    options="{'preview_image': 'monthly_analysis_chart', 'size': [1000, 700]}"/>
                             <field name="monthly_analysis_scatter_chart" widget="image"
                                    options="{'preview_image': 'monthly_analysis_scatter_chart', 'size': [1000, 700]}"/>
@@ -102,7 +102,7 @@
                             <field name="monthly_combined_chart" widget="image"
                                    options="{'preview_image': 'monthly_combined_chart', 'size': [1000, 600]}"
                                    nolabel="1"/>
-                             <field name="monthly_success_rate_chart" widget="image"
+                            <field name="monthly_success_rate_chart" widget="image"
                                    options="{'preview_image': 'monthly_success_rate_chart', 'size': [1000, 600]}"
                                    nolabel="1"/>
                             <field name="cumulative_success_rate_chart" widget="image"
@@ -123,7 +123,7 @@
 
                         <!-- Customer Analysis -->
                         <page string="Аналіз клієнтів">
-                             <field name="partners_by_rate_chart" widget="image"
+                            <field name="partners_by_rate_chart" widget="image"
                                    options="{'preview_image': 'partners_by_rate_chart', 'size': [1000, 600]}"/>
                             <field name="customer_history_graph" widget="image"
                                    options="{'preview_image': 'customer_history_graph', 'size': [1000, 600]}"/>
@@ -132,17 +132,38 @@
                                    nolabel="1"/>
                             <field name="customer_relationship_graph" widget="image"
                                    options="{'preview_image': 'customer_relationship_graph', 'size': [1000, 600]}"/>
-                             <field name="partner_age_success_chart" widget="image"
+                            <field name="partner_age_success_chart" widget="image"
                                    options="{'preview_image': 'partner_age_success_chart', 'size': [1000, 600]}"
                                    nolabel="1"/>
                             <field name="relative_age_success_chart" widget="image"
                                    options="{'preview_image': 'relative_age_success_chart', 'size': [1000, 600]}"
                                    nolabel="1"/>
+                            <field name="customer_avg_messages_graph" widget="image"
+                                   options="{'preview_image': 'customer_avg_messages_graph', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+                            <field name="customer_avg_changes_graph" widget="image"
+                                   options="{'preview_image': 'customer_avg_changes_graph', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+
+                            <field name="customer_relationship_distribution_graph" widget="image"
+                                   options="{'preview_image': 'customer_relationship_distribution_graph', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+
+                            <field name="customer_amount_success_distribution_graph" widget="image"
+                                   options="{'preview_image': 'customer_amount_success_distribution_graph', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+
+                            <field name="customer_amount_success_distribution_plot" widget="image"
+                                   options="{'preview_image': 'customer_amount_success_distribution_plot', 'size': [1000, 600]}"
+                                   nolabel="1"/>
+
+                            <button name="create_customer_amount_success_distribution_plot" type="object" string="Create Plot"/>
+
                         </page>
 
                         <!-- Order Analysis -->
                         <page string="Аналіз замовлень">
-                             <field name="orders_by_state_chart" widget="image"
+                            <field name="orders_by_state_chart" widget="image"
                                    options="{'preview_image': 'orders_by_state_chart', 'size': [1000, 600]}"/>
                             <field name="amount_correlation_graph" widget="image"
                                    options="{'preview_image': 'amount_correlation_graph', 'size': [1200, 800]}"/>
@@ -156,9 +177,12 @@
                                    options="{'preview_image': 'product_lines_graph', 'size': [1200, 800]}"/>
                             <field name="payment_analysis_graph" widget="image"
                                    options="{'preview_image': 'payment_analysis_graph', 'size': [1200, 800]}"/>
-                             <field name="payment_term_success_chart" widget="image"
+                            <field name="payment_term_success_chart" widget="image"
                                    options="{'preview_image': 'payment_term_success_chart', 'size': [1000, 1000]}"
                                    nolabel="1"/>
+                            <field name="changes_messages_correlation_graph" widget="image"
+                                   options="{'preview_image': 'changes_messages_correlation_graph', 'size': [1200, 800]}"/>
+
                             <field name="delivery_analysis_graph" widget="image"
                                    options="{'preview_image': 'delivery_analysis_graph', 'size': [1200, 800]}"/>
                         </page>
