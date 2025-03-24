@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_data_processor_root"
+              name="Data Processor"
+              sequence="10"/>
+
+    <menuitem id="menu_data_processor"
+              name="Data Processor"
+              parent="menu_data_processor_root"
+              action="action_data_processor"
+              sequence="10"/>
+</odoo>

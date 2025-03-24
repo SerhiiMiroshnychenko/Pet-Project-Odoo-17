@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_data_processor_tree" model="ir.ui.view">
+        <field name="name">view.data.processor.tree</field>
+        <field name="model">data.processor</field>
+        <field name="arch" type="xml">
+            <tree string="Data Processors">
+                <field name="name"/>
+                <field name="date_range_display"/>
+                <field name="total_partners"/>
+                <field name="total_orders"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_data_processor_form" model="ir.ui.view">
+        <field name="name">view.data.processor.form</field>
+        <field name="model">data.processor</field>
+        <field name="arch" type="xml">
+            <form string="Data Processor">
+                <header>
+                    <button name="action_collect_data"
+                            string="Collect Data"
+                            type="object"
+                            class="btn btn-primary"/>
+                    <button name="action_compute_statistics"
+                            string="Compute Statistics"
+                            type="object"
+                            class="btn btn-success"/>
+                    <button name="action_create_charts"
+                            string="Create Charts"
+                            type="object"
+                            class="btn btn-info"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="prefix_number"/>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                        <field name="date_range_display"/>
+                    </group>
+                    <group string="Data Source">
+                        <field name="data_file" filename="data_filename" widget="binary" string="Upload CSV File"/>
+                        <field name="data_filename" invisible="1"/>
+                        <div colspan="2" class="text-muted" attrs="{'invisible': [('data_file', '!=', False)]}">
+                            Upload a CSV file or use the "Collect Data" button to gather data from the system.
+                        </div>
+                    </group>
+                    <notebook attrs="{'invisible': [('data_file', '=', False)]}">
+                        <page string="General Statistics" name="general_statistics">
+                            <group>
+                                <group string="Key Metrics">
+                                    <field name="date_partner_display"/>
+                                    <field name="total_partners"/>
+                                    <field name="total_orders"/>
+                                </group>
+                                <group string="Distribution">
+                                    <field name="orders_by_state"/>
+                                    <field name="partners_by_success_rate"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Charts" name="charts">
+                            <field name="partners_by_rate_chart" widget="image"
+                                   options="{'preview_image': 'partners_by_rate_chart', 'size': [1000, 600]}"/>
+                            <field name="customer_history_graph" widget="image"
+                                   options="{'preview_image': 'customer_history_graph', 'size': [1000, 600]}"/>
+                            <field name="partner_orders_success_chart" widget="image"
+                                   options="{'preview_image': 'partner_orders_success_chart', 'size': [1000, 600]}"/>
+                            <field name="customer_relationship_graph" widget="image"
+                                   options="{'preview_image': 'customer_relationship_graph', 'size': [1000, 600]}"/>
+                            <field name="partner_age_success_chart" widget="image"
+                                   options="{'preview_image': 'partner_age_success_chart', 'size': [1000, 600]}"/>
+                            <field name="customer_avg_messages_graph" widget="image"
+                                   options="{'preview_image': 'customer_avg_messages_graph', 'size': [1000, 600]}"/>
+                            <field name="customer_avg_changes_graph" widget="image"
+                                   options="{'preview_image': 'customer_avg_changes_graph', 'size': [1000, 600]}"/>
+                            <field name="customer_relationship_distribution_graph" widget="image"
+                                   options="{'preview_image': 'customer_relationship_distribution_graph', 'size': [1000, 600]}"/>
+                            <field name="customer_amount_success_distribution_plot" widget="image"
+                                   options="{'preview_image': 'customer_amount_success_distribution_plot', 'size': [1000, 600]}"/>
+
+                            <field name="customer_amount_success_distribution_graph" widget="image"
+                                   options="{'preview_image': 'customer_amount_success_distribution_graph', 'size': [1000, 600]}"/>
+                        </page>
+                        <page string="Plots" name="plots">
+                            <field name="customer_order_dependency" widget="image"
+                                   options="{'preview_image': 'customer_order_dependency', 'size': [1000, 600]}"/>
+                            <field name="customer_age_dependency" widget="image"
+                                   options="{'preview_image': 'customer_age_dependency', 'size': [1000, 600]}"/>
+                            <field name="customer_messages_dependency" widget="image"
+                                   options="{'preview_image': 'customer_messages_dependency', 'size': [1000, 600]}"/>
+                            <field name="customer_changes_dependency" widget="image"
+                                   options="{'preview_image': 'customer_changes_dependency', 'size': [1000, 600]}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_data_processor" model="ir.actions.act_window">
+        <field name="name">Data Processor</field>
+        <field name="res_model">data.processor</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

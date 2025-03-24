@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_order_data_collector_root"
+              name="Order Data Collector"
+              sequence="0"/>
+
+    <menuitem id="menu_order_data_collector"
+              name="Collectors"
+              parent="menu_order_data_collector_root"
+              action="action_order_data_collector"
+              sequence="0"/>
+</odoo>
